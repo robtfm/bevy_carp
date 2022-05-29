@@ -1,0 +1,665 @@
+bevy_carp v0.1.0 (C:\Users\robfm\Documents\gamedev\simbull\bevy_carp)
+├── bevy v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy)
+│   └── bevy_internal v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_internal)
+│       ├── bevy_animation v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_animation)
+│       │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app)
+│       │   │   ├── bevy_derive v0.8.0-dev (proc-macro) (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_derive)
+│       │   │   │   ├── bevy_macro_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_macro_utils)
+│       │   │   │   │   ├── quote v1.0.18
+│       │   │   │   │   │   └── proc-macro2 v1.0.39
+│       │   │   │   │   │       └── unicode-ident v1.0.0
+│       │   │   │   │   ├── syn v1.0.95
+│       │   │   │   │   │   ├── proc-macro2 v1.0.39 (*)
+│       │   │   │   │   │   ├── quote v1.0.18 (*)
+│       │   │   │   │   │   └── unicode-ident v1.0.0
+│       │   │   │   │   └── toml v0.5.9
+│       │   │   │   │       └── serde v1.0.137
+│       │   │   │   ├── quote v1.0.18 (*)
+│       │   │   │   └── syn v1.0.95 (*)
+│       │   │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs)
+│       │   │   │   ├── async-channel v1.6.1
+│       │   │   │   │   ├── concurrent-queue v1.2.2
+│       │   │   │   │   │   └── cache-padded v1.2.0
+│       │   │   │   │   ├── event-listener v2.5.2
+│       │   │   │   │   └── futures-core v0.3.21
+│       │   │   │   ├── bevy_ecs_macros v0.8.0-dev (proc-macro) (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs\macros)
+│       │   │   │   │   ├── bevy_macro_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_macro_utils) (*)
+│       │   │   │   │   ├── proc-macro2 v1.0.39 (*)
+│       │   │   │   │   ├── quote v1.0.18 (*)
+│       │   │   │   │   └── syn v1.0.95 (*)
+│       │   │   │   ├── bevy_ptr v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ptr)
+│       │   │   │   ├── bevy_reflect v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect)
+│       │   │   │   │   ├── bevy_reflect_derive v0.8.0-dev (proc-macro) (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect\bevy_reflect_derive)
+│       │   │   │   │   │   ├── bevy_macro_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_macro_utils) (*)
+│       │   │   │   │   │   ├── proc-macro2 v1.0.39 (*)
+│       │   │   │   │   │   ├── quote v1.0.18 (*)
+│       │   │   │   │   │   ├── syn v1.0.95 (*)
+│       │   │   │   │   │   └── uuid v0.8.2
+│       │   │   │   │   │       └── getrandom v0.2.6
+│       │   │   │   │   │           └── cfg-if v1.0.0
+│       │   │   │   │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils)
+│       │   │   │   │   │   ├── ahash v0.7.6
+│       │   │   │   │   │   │   ├── getrandom v0.2.6
+│       │   │   │   │   │   │   │   └── cfg-if v1.0.0
+│       │   │   │   │   │   │   └── once_cell v1.11.0
+│       │   │   │   │   │   │   [build-dependencies]
+│       │   │   │   │   │   │   └── version_check v0.9.4
+│       │   │   │   │   │   ├── hashbrown v0.11.2
+│       │   │   │   │   │   │   ├── ahash v0.7.6 (*)
+│       │   │   │   │   │   │   └── serde v1.0.137
+│       │   │   │   │   │   │       └── serde_derive v1.0.137 (proc-macro)
+│       │   │   │   │   │   │           ├── proc-macro2 v1.0.39 (*)
+│       │   │   │   │   │   │           ├── quote v1.0.18 (*)
+│       │   │   │   │   │   │           └── syn v1.0.95 (*)
+│       │   │   │   │   │   ├── instant v0.1.12
+│       │   │   │   │   │   │   └── cfg-if v1.0.0
+│       │   │   │   │   │   ├── tracing v0.1.34
+│       │   │   │   │   │   │   ├── cfg-if v1.0.0
+│       │   │   │   │   │   │   ├── pin-project-lite v0.2.9
+│       │   │   │   │   │   │   └── tracing-core v0.1.26
+│       │   │   │   │   │   │       └── lazy_static v1.4.0
+│       │   │   │   │   │   └── uuid v0.8.2
+│       │   │   │   │   │       ├── getrandom v0.2.6 (*)
+│       │   │   │   │   │       └── serde v1.0.137 (*)
+│       │   │   │   │   ├── downcast-rs v1.2.0
+│       │   │   │   │   ├── erased-serde v0.3.20
+│       │   │   │   │   │   └── serde v1.0.137 (*)
+│       │   │   │   │   ├── glam v0.20.5
+│       │   │   │   │   │   ├── bytemuck v1.9.1
+│       │   │   │   │   │   │   └── bytemuck_derive v1.1.0 (proc-macro)
+│       │   │   │   │   │   │       ├── proc-macro2 v1.0.39 (*)
+│       │   │   │   │   │   │       ├── quote v1.0.18 (*)
+│       │   │   │   │   │   │       └── syn v1.0.95 (*)
+│       │   │   │   │   │   ├── num-traits v0.2.15
+│       │   │   │   │   │   │   [build-dependencies]
+│       │   │   │   │   │   │   └── autocfg v1.1.0
+│       │   │   │   │   │   └── serde v1.0.137 (*)
+│       │   │   │   │   ├── parking_lot v0.11.2
+│       │   │   │   │   │   ├── instant v0.1.12 (*)
+│       │   │   │   │   │   ├── lock_api v0.4.7
+│       │   │   │   │   │   │   └── scopeguard v1.1.0
+│       │   │   │   │   │   │   [build-dependencies]
+│       │   │   │   │   │   │   └── autocfg v1.1.0
+│       │   │   │   │   │   └── parking_lot_core v0.8.5
+│       │   │   │   │   │       ├── cfg-if v1.0.0
+│       │   │   │   │   │       ├── instant v0.1.12 (*)
+│       │   │   │   │   │       ├── smallvec v1.8.0
+│       │   │   │   │   │       │   └── serde v1.0.137 (*)
+│       │   │   │   │   │       └── winapi v0.3.9
+│       │   │   │   │   ├── serde v1.0.137 (*)
+│       │   │   │   │   ├── smallvec v1.8.0 (*)
+│       │   │   │   │   └── thiserror v1.0.31
+│       │   │   │   │       └── thiserror-impl v1.0.31 (proc-macro)
+│       │   │   │   │           ├── proc-macro2 v1.0.39 (*)
+│       │   │   │   │           ├── quote v1.0.18 (*)
+│       │   │   │   │           └── syn v1.0.95 (*)
+│       │   │   │   ├── bevy_tasks v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_tasks)
+│       │   │   │   │   ├── async-channel v1.6.1 (*)
+│       │   │   │   │   ├── async-executor v1.4.1
+│       │   │   │   │   │   ├── async-task v4.2.0
+│       │   │   │   │   │   ├── concurrent-queue v1.2.2 (*)
+│       │   │   │   │   │   ├── fastrand v1.7.0
+│       │   │   │   │   │   ├── futures-lite v1.12.0
+│       │   │   │   │   │   │   ├── fastrand v1.7.0
+│       │   │   │   │   │   │   ├── futures-core v0.3.21
+│       │   │   │   │   │   │   ├── futures-io v0.3.21
+│       │   │   │   │   │   │   ├── memchr v2.5.0
+│       │   │   │   │   │   │   ├── parking v2.0.0
+│       │   │   │   │   │   │   ├── pin-project-lite v0.2.9
+│       │   │   │   │   │   │   └── waker-fn v1.1.0
+│       │   │   │   │   │   ├── once_cell v1.11.0
+│       │   │   │   │   │   └── slab v0.4.6
+│       │   │   │   │   ├── event-listener v2.5.2
+│       │   │   │   │   ├── futures-lite v1.12.0 (*)
+│       │   │   │   │   └── num_cpus v1.13.1
+│       │   │   │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   │   │   ├── downcast-rs v1.2.0
+│       │   │   │   ├── fixedbitset v0.4.1
+│       │   │   │   ├── fxhash v0.2.1
+│       │   │   │   │   └── byteorder v1.4.3
+│       │   │   │   └── serde v1.0.137 (*)
+│       │   │   ├── bevy_reflect v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect) (*)
+│       │   │   └── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   ├── bevy_asset v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_asset)
+│       │   │   ├── anyhow v1.0.57
+│       │   │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   │   ├── bevy_diagnostic v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_diagnostic)
+│       │   │   │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   │   │   ├── bevy_core v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_core)
+│       │   │   │   │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   │   │   │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   │   │   │   ├── bevy_math v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_math)
+│       │   │   │   │   │   └── glam v0.20.5 (*)
+│       │   │   │   │   ├── bevy_reflect v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect) (*)
+│       │   │   │   │   ├── bevy_tasks v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_tasks) (*)
+│       │   │   │   │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   │   │   │   └── bytemuck v1.9.1 (*)
+│       │   │   │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   │   │   ├── bevy_log v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_log)
+│       │   │   │   │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   │   │   │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   │   │   │   ├── tracing-log v0.1.3
+│       │   │   │   │   │   ├── lazy_static v1.4.0
+│       │   │   │   │   │   ├── log v0.4.17
+│       │   │   │   │   │   │   └── cfg-if v1.0.0
+│       │   │   │   │   │   └── tracing-core v0.1.26 (*)
+│       │   │   │   │   └── tracing-subscriber v0.3.11
+│       │   │   │   │       ├── ansi_term v0.12.1
+│       │   │   │   │       │   └── winapi v0.3.9
+│       │   │   │   │       ├── lazy_static v1.4.0
+│       │   │   │   │       ├── matchers v0.1.0
+│       │   │   │   │       │   └── regex-automata v0.1.10
+│       │   │   │   │       │       └── regex-syntax v0.6.26
+│       │   │   │   │       ├── regex v1.5.6
+│       │   │   │   │       │   ├── aho-corasick v0.7.18
+│       │   │   │   │       │   │   └── memchr v2.5.0
+│       │   │   │   │       │   ├── memchr v2.5.0
+│       │   │   │   │       │   └── regex-syntax v0.6.26
+│       │   │   │   │       ├── sharded-slab v0.1.4
+│       │   │   │   │       │   └── lazy_static v1.4.0
+│       │   │   │   │       ├── smallvec v1.8.0 (*)
+│       │   │   │   │       ├── thread_local v1.1.4
+│       │   │   │   │       │   └── once_cell v1.11.0
+│       │   │   │   │       ├── tracing v0.1.34 (*)
+│       │   │   │   │       ├── tracing-core v0.1.26 (*)
+│       │   │   │   │       └── tracing-log v0.1.3 (*)
+│       │   │   │   └── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   │   ├── bevy_log v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_log) (*)
+│       │   │   ├── bevy_reflect v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect) (*)
+│       │   │   ├── bevy_tasks v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_tasks) (*)
+│       │   │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   │   ├── crossbeam-channel v0.5.4
+│       │   │   │   ├── cfg-if v1.0.0
+│       │   │   │   └── crossbeam-utils v0.8.8
+│       │   │   │       ├── cfg-if v1.0.0
+│       │   │   │       └── lazy_static v1.4.0
+│       │   │   ├── downcast-rs v1.2.0
+│       │   │   ├── notify v5.0.0-pre.11
+│       │   │   │   ├── bitflags v1.3.2
+│       │   │   │   ├── crossbeam-channel v0.5.4 (*)
+│       │   │   │   ├── filetime v0.2.16
+│       │   │   │   │   ├── cfg-if v1.0.0
+│       │   │   │   │   └── winapi v0.3.9
+│       │   │   │   ├── libc v0.2.126
+│       │   │   │   ├── walkdir v2.3.2
+│       │   │   │   │   ├── same-file v1.0.6
+│       │   │   │   │   │   └── winapi-util v0.1.5
+│       │   │   │   │   │       └── winapi v0.3.9
+│       │   │   │   │   ├── winapi v0.3.9
+│       │   │   │   │   └── winapi-util v0.1.5 (*)
+│       │   │   │   └── winapi v0.3.9
+│       │   │   ├── parking_lot v0.11.2 (*)
+│       │   │   ├── rand v0.8.5
+│       │   │   │   ├── rand_chacha v0.3.1
+│       │   │   │   │   ├── ppv-lite86 v0.2.16
+│       │   │   │   │   └── rand_core v0.6.3
+│       │   │   │   │       └── getrandom v0.2.6 (*)
+│       │   │   │   └── rand_core v0.6.3 (*)
+│       │   │   ├── serde v1.0.137 (*)
+│       │   │   └── thiserror v1.0.31 (*)
+│       │   ├── bevy_core v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_core) (*)
+│       │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   ├── bevy_hierarchy v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_hierarchy)
+│       │   │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   │   ├── bevy_reflect v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect) (*)
+│       │   │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   │   └── smallvec v1.8.0 (*)
+│       │   ├── bevy_math v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_math) (*)
+│       │   ├── bevy_reflect v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect) (*)
+│       │   ├── bevy_transform v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_transform)
+│       │   │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   │   ├── bevy_hierarchy v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_hierarchy) (*)
+│       │   │   ├── bevy_math v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_math) (*)
+│       │   │   └── bevy_reflect v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect) (*)
+│       │   └── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       ├── bevy_asset v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_asset) (*)
+│       ├── bevy_audio v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_audio)
+│       │   ├── anyhow v1.0.57
+│       │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   ├── bevy_asset v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_asset) (*)
+│       │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   ├── bevy_reflect v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect) (*)
+│       │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   ├── parking_lot v0.11.2 (*)
+│       │   └── rodio v0.15.0
+│       │       ├── cpal v0.13.5
+│       │       │   ├── lazy_static v1.4.0
+│       │       │   ├── parking_lot v0.11.2 (*)
+│       │       │   ├── thiserror v1.0.31 (*)
+│       │       │   └── winapi v0.3.9
+│       │       └── lewton v0.10.2
+│       │           ├── byteorder v1.4.3
+│       │           ├── ogg v0.8.0
+│       │           │   └── byteorder v1.4.3
+│       │           └── tinyvec v1.6.0
+│       │               └── tinyvec_macros v0.1.0
+│       ├── bevy_core v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_core) (*)
+│       ├── bevy_core_pipeline v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_core_pipeline)
+│       │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   ├── bevy_asset v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_asset) (*)
+│       │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   ├── bevy_render v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_render)
+│       │   │   ├── anyhow v1.0.57
+│       │   │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   │   ├── bevy_asset v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_asset) (*)
+│       │   │   ├── bevy_core v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_core) (*)
+│       │   │   ├── bevy_derive v0.8.0-dev (proc-macro) (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_derive) (*)
+│       │   │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   │   ├── bevy_encase_derive v0.8.0-dev (proc-macro) (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_encase_derive)
+│       │   │   │   ├── bevy_macro_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_macro_utils) (*)
+│       │   │   │   └── encase_derive_impl v0.2.0
+│       │   │   │       ├── proc-macro2 v1.0.39 (*)
+│       │   │   │       ├── quote v1.0.18 (*)
+│       │   │   │       └── syn v1.0.95 (*)
+│       │   │   ├── bevy_math v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_math) (*)
+│       │   │   ├── bevy_reflect v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect) (*)
+│       │   │   ├── bevy_transform v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_transform) (*)
+│       │   │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   │   ├── bevy_window v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_window)
+│       │   │   │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   │   │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   │   │   ├── bevy_input v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_input)
+│       │   │   │   │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   │   │   │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   │   │   │   ├── bevy_math v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_math) (*)
+│       │   │   │   │   └── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   │   │   ├── bevy_math v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_math) (*)
+│       │   │   │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   │   │   └── raw-window-handle v0.4.3
+│       │   │   │       └── cty v0.2.2
+│       │   │   ├── bitflags v1.3.2
+│       │   │   ├── codespan-reporting v0.11.1
+│       │   │   │   ├── termcolor v1.1.3
+│       │   │   │   │   └── winapi-util v0.1.5 (*)
+│       │   │   │   └── unicode-width v0.1.9
+│       │   │   ├── copyless v0.1.5
+│       │   │   ├── downcast-rs v1.2.0
+│       │   │   ├── encase v0.2.0
+│       │   │   │   ├── const_panic v0.2.3
+│       │   │   │   ├── encase_derive v0.2.0 (proc-macro)
+│       │   │   │   │   └── encase_derive_impl v0.2.0 (*)
+│       │   │   │   ├── glam v0.20.5 (*)
+│       │   │   │   └── thiserror v1.0.31 (*)
+│       │   │   ├── futures-lite v1.12.0 (*)
+│       │   │   ├── hex v0.4.3
+│       │   │   ├── hexasphere v7.0.0
+│       │   │   │   ├── glam v0.20.5 (*)
+│       │   │   │   └── lazy_static v1.4.0
+│       │   │   ├── image v0.23.14
+│       │   │   │   ├── bytemuck v1.9.1 (*)
+│       │   │   │   ├── byteorder v1.4.3
+│       │   │   │   ├── color_quant v1.1.0
+│       │   │   │   ├── num-iter v0.1.43
+│       │   │   │   │   ├── num-integer v0.1.45
+│       │   │   │   │   │   └── num-traits v0.2.15 (*)
+│       │   │   │   │   │   [build-dependencies]
+│       │   │   │   │   │   └── autocfg v1.1.0
+│       │   │   │   │   └── num-traits v0.2.15 (*)
+│       │   │   │   │   [build-dependencies]
+│       │   │   │   │   └── autocfg v1.1.0
+│       │   │   │   ├── num-rational v0.3.2
+│       │   │   │   │   ├── num-integer v0.1.45 (*)
+│       │   │   │   │   └── num-traits v0.2.15 (*)
+│       │   │   │   │   [build-dependencies]
+│       │   │   │   │   └── autocfg v1.1.0
+│       │   │   │   ├── num-traits v0.2.15 (*)
+│       │   │   │   ├── png v0.16.8
+│       │   │   │   │   ├── bitflags v1.3.2
+│       │   │   │   │   ├── crc32fast v1.3.2
+│       │   │   │   │   │   └── cfg-if v1.0.0
+│       │   │   │   │   ├── deflate v0.8.6
+│       │   │   │   │   │   ├── adler32 v1.2.0
+│       │   │   │   │   │   └── byteorder v1.4.3
+│       │   │   │   │   └── miniz_oxide v0.3.7
+│       │   │   │   │       └── adler32 v1.2.0
+│       │   │   │   └── scoped_threadpool v0.1.9
+│       │   │   ├── naga v0.8.5
+│       │   │   │   ├── bit-set v0.5.2
+│       │   │   │   │   └── bit-vec v0.6.3
+│       │   │   │   ├── bitflags v1.3.2
+│       │   │   │   ├── codespan-reporting v0.11.1 (*)
+│       │   │   │   ├── hexf-parse v0.2.1
+│       │   │   │   ├── indexmap v1.7.0
+│       │   │   │   │   └── hashbrown v0.11.2 (*)
+│       │   │   │   │   [build-dependencies]
+│       │   │   │   │   └── autocfg v1.1.0
+│       │   │   │   ├── log v0.4.17 (*)
+│       │   │   │   ├── num-traits v0.2.15 (*)
+│       │   │   │   ├── petgraph v0.6.1
+│       │   │   │   │   ├── fixedbitset v0.4.1
+│       │   │   │   │   └── indexmap v1.7.0 (*)
+│       │   │   │   ├── pp-rs v0.2.1
+│       │   │   │   │   └── unicode-xid v0.2.3
+│       │   │   │   ├── rustc-hash v1.1.0
+│       │   │   │   ├── spirv v0.2.0+1.5.4
+│       │   │   │   │   ├── bitflags v1.3.2
+│       │   │   │   │   └── num-traits v0.2.15 (*)
+│       │   │   │   └── thiserror v1.0.31 (*)
+│       │   │   ├── once_cell v1.11.0
+│       │   │   ├── parking_lot v0.11.2 (*)
+│       │   │   ├── regex v1.5.6 (*)
+│       │   │   ├── serde v1.0.137 (*)
+│       │   │   ├── smallvec v1.8.0 (*)
+│       │   │   ├── thiserror v1.0.31 (*)
+│       │   │   └── wgpu v0.12.0
+│       │   │       ├── arrayvec v0.7.2
+│       │   │       ├── log v0.4.17 (*)
+│       │   │       ├── naga v0.8.5 (*)
+│       │   │       ├── parking_lot v0.11.2 (*)
+│       │   │       ├── raw-window-handle v0.4.3 (*)
+│       │   │       ├── smallvec v1.8.0 (*)
+│       │   │       ├── wgpu-core v0.12.2
+│       │   │       │   ├── arrayvec v0.7.2
+│       │   │       │   ├── bitflags v1.3.2
+│       │   │       │   ├── codespan-reporting v0.11.1 (*)
+│       │   │       │   ├── copyless v0.1.5
+│       │   │       │   ├── fxhash v0.2.1 (*)
+│       │   │       │   ├── log v0.4.17 (*)
+│       │   │       │   ├── naga v0.8.5 (*)
+│       │   │       │   ├── parking_lot v0.11.2 (*)
+│       │   │       │   ├── profiling v1.0.5
+│       │   │       │   ├── raw-window-handle v0.4.3 (*)
+│       │   │       │   ├── smallvec v1.8.0 (*)
+│       │   │       │   ├── thiserror v1.0.31 (*)
+│       │   │       │   ├── wgpu-hal v0.12.5
+│       │   │       │   │   ├── arrayvec v0.7.2
+│       │   │       │   │   ├── ash v0.34.0+1.2.203
+│       │   │       │   │   │   └── libloading v0.7.3
+│       │   │       │   │   │       └── winapi v0.3.9
+│       │   │       │   │   ├── bit-set v0.5.2 (*)
+│       │   │       │   │   ├── bitflags v1.3.2
+│       │   │       │   │   ├── d3d12 v0.4.1
+│       │   │       │   │   │   ├── bitflags v1.3.2
+│       │   │       │   │   │   ├── libloading v0.7.3 (*)
+│       │   │       │   │   │   └── winapi v0.3.9
+│       │   │       │   │   ├── fxhash v0.2.1 (*)
+│       │   │       │   │   ├── gpu-alloc v0.5.3
+│       │   │       │   │   │   ├── bitflags v1.3.2
+│       │   │       │   │   │   └── gpu-alloc-types v0.2.0
+│       │   │       │   │   │       └── bitflags v1.3.2
+│       │   │       │   │   ├── gpu-descriptor v0.2.2
+│       │   │       │   │   │   ├── bitflags v1.3.2
+│       │   │       │   │   │   ├── gpu-descriptor-types v0.1.1
+│       │   │       │   │   │   │   └── bitflags v1.3.2
+│       │   │       │   │   │   └── hashbrown v0.11.2 (*)
+│       │   │       │   │   ├── inplace_it v0.3.3
+│       │   │       │   │   ├── libloading v0.7.3 (*)
+│       │   │       │   │   ├── log v0.4.17 (*)
+│       │   │       │   │   ├── naga v0.8.5 (*)
+│       │   │       │   │   ├── parking_lot v0.11.2 (*)
+│       │   │       │   │   ├── profiling v1.0.5
+│       │   │       │   │   ├── range-alloc v0.1.2
+│       │   │       │   │   ├── raw-window-handle v0.4.3 (*)
+│       │   │       │   │   ├── renderdoc-sys v0.7.1
+│       │   │       │   │   ├── thiserror v1.0.31 (*)
+│       │   │       │   │   ├── wgpu-types v0.12.0
+│       │   │       │   │   │   └── bitflags v1.3.2
+│       │   │       │   │   └── winapi v0.3.9
+│       │   │       │   └── wgpu-types v0.12.0 (*)
+│       │   │       │   [build-dependencies]
+│       │   │       │   └── cfg_aliases v0.1.1
+│       │   │       ├── wgpu-hal v0.12.5 (*)
+│       │   │       └── wgpu-types v0.12.0 (*)
+│       │   └── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       ├── bevy_derive v0.8.0-dev (proc-macro) (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_derive) (*)
+│       ├── bevy_diagnostic v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_diagnostic) (*)
+│       ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       ├── bevy_gilrs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_gilrs)
+│       │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   ├── bevy_input v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_input) (*)
+│       │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   └── gilrs v0.8.2
+│       │       ├── fnv v1.0.7
+│       │       ├── gilrs-core v0.3.2
+│       │       │   ├── log v0.4.17 (*)
+│       │       │   ├── rusty-xinput v1.2.0
+│       │       │   │   ├── lazy_static v1.4.0
+│       │       │   │   ├── log v0.4.17 (*)
+│       │       │   │   └── winapi v0.3.9
+│       │       │   ├── uuid v0.8.2 (*)
+│       │       │   └── winapi v0.3.9
+│       │       ├── log v0.4.17 (*)
+│       │       ├── uuid v0.8.2 (*)
+│       │       └── vec_map v0.8.2
+│       ├── bevy_gltf v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_gltf)
+│       │   ├── anyhow v1.0.57
+│       │   ├── base64 v0.13.0
+│       │   ├── bevy_animation v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_animation) (*)
+│       │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   ├── bevy_asset v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_asset) (*)
+│       │   ├── bevy_core v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_core) (*)
+│       │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   ├── bevy_hierarchy v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_hierarchy) (*)
+│       │   ├── bevy_log v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_log) (*)
+│       │   ├── bevy_math v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_math) (*)
+│       │   ├── bevy_pbr v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_pbr)
+│       │   │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   │   ├── bevy_asset v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_asset) (*)
+│       │   │   ├── bevy_core_pipeline v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_core_pipeline) (*)
+│       │   │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   │   ├── bevy_math v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_math) (*)
+│       │   │   ├── bevy_reflect v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect) (*)
+│       │   │   ├── bevy_render v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_render) (*)
+│       │   │   ├── bevy_transform v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_transform) (*)
+│       │   │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   │   ├── bevy_window v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_window) (*)
+│       │   │   ├── bitflags v1.3.2
+│       │   │   └── bytemuck v1.9.1 (*)
+│       │   ├── bevy_reflect v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect) (*)
+│       │   ├── bevy_render v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_render) (*)
+│       │   ├── bevy_scene v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_scene)
+│       │   │   ├── anyhow v1.0.57
+│       │   │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   │   ├── bevy_asset v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_asset) (*)
+│       │   │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   │   ├── bevy_hierarchy v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_hierarchy) (*)
+│       │   │   ├── bevy_reflect v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect) (*)
+│       │   │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   │   ├── ron v0.7.0
+│       │   │   │   ├── base64 v0.13.0
+│       │   │   │   ├── bitflags v1.3.2
+│       │   │   │   └── serde v1.0.137 (*)
+│       │   │   ├── serde v1.0.137 (*)
+│       │   │   ├── thiserror v1.0.31 (*)
+│       │   │   └── uuid v0.8.2 (*)
+│       │   ├── bevy_transform v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_transform) (*)
+│       │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   ├── gltf v1.0.0
+│       │   │   ├── byteorder v1.4.3
+│       │   │   ├── gltf-json v1.0.0
+│       │   │   │   ├── gltf-derive v1.0.0 (proc-macro)
+│       │   │   │   │   ├── inflections v1.1.1
+│       │   │   │   │   ├── proc-macro2 v1.0.39 (*)
+│       │   │   │   │   ├── quote v1.0.18 (*)
+│       │   │   │   │   └── syn v1.0.95 (*)
+│       │   │   │   ├── serde v1.0.137 (*)
+│       │   │   │   ├── serde_derive v1.0.137 (proc-macro) (*)
+│       │   │   │   └── serde_json v1.0.81
+│       │   │   │       ├── itoa v1.0.2
+│       │   │   │       ├── ryu v1.0.10
+│       │   │   │       └── serde v1.0.137 (*)
+│       │   │   └── lazy_static v1.4.0
+│       │   ├── percent-encoding v2.1.0
+│       │   └── thiserror v1.0.31 (*)
+│       ├── bevy_hierarchy v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_hierarchy) (*)
+│       ├── bevy_input v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_input) (*)
+│       ├── bevy_log v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_log) (*)
+│       ├── bevy_math v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_math) (*)
+│       ├── bevy_pbr v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_pbr) (*)
+│       ├── bevy_ptr v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ptr)
+│       ├── bevy_reflect v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect) (*)
+│       ├── bevy_render v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_render) (*)
+│       ├── bevy_scene v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_scene) (*)
+│       ├── bevy_sprite v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_sprite)
+│       │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   ├── bevy_asset v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_asset) (*)
+│       │   ├── bevy_core_pipeline v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_core_pipeline) (*)
+│       │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   ├── bevy_log v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_log) (*)
+│       │   ├── bevy_math v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_math) (*)
+│       │   ├── bevy_reflect v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect) (*)
+│       │   ├── bevy_render v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_render) (*)
+│       │   ├── bevy_transform v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_transform) (*)
+│       │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   ├── bitflags v1.3.2
+│       │   ├── bytemuck v1.9.1 (*)
+│       │   ├── copyless v0.1.5
+│       │   ├── guillotiere v0.6.2
+│       │   │   ├── euclid v0.22.7
+│       │   │   │   └── num-traits v0.2.15 (*)
+│       │   │   └── svg_fmt v0.4.1
+│       │   ├── rectangle-pack v0.4.2
+│       │   ├── serde v1.0.137 (*)
+│       │   └── thiserror v1.0.31 (*)
+│       ├── bevy_tasks v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_tasks) (*)
+│       ├── bevy_text v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_text)
+│       │   ├── ab_glyph v0.2.15
+│       │   │   ├── ab_glyph_rasterizer v0.1.5
+│       │   │   └── owned_ttf_parser v0.15.0
+│       │   │       └── ttf-parser v0.15.0
+│       │   ├── anyhow v1.0.57
+│       │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   ├── bevy_asset v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_asset) (*)
+│       │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   ├── bevy_math v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_math) (*)
+│       │   ├── bevy_reflect v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect) (*)
+│       │   ├── bevy_render v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_render) (*)
+│       │   ├── bevy_sprite v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_sprite) (*)
+│       │   ├── bevy_transform v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_transform) (*)
+│       │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   ├── bevy_window v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_window) (*)
+│       │   ├── glyph_brush_layout v0.2.3
+│       │   │   ├── ab_glyph v0.2.15 (*)
+│       │   │   ├── approx v0.5.1
+│       │   │   │   └── num-traits v0.2.15 (*)
+│       │   │   └── xi-unicode v0.3.0
+│       │   ├── serde v1.0.137 (*)
+│       │   └── thiserror v1.0.31 (*)
+│       ├── bevy_transform v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_transform) (*)
+│       ├── bevy_ui v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ui)
+│       │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│       │   ├── bevy_asset v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_asset) (*)
+│       │   ├── bevy_core_pipeline v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_core_pipeline) (*)
+│       │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│       │   ├── bevy_hierarchy v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_hierarchy) (*)
+│       │   ├── bevy_input v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_input) (*)
+│       │   ├── bevy_log v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_log) (*)
+│       │   ├── bevy_math v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_math) (*)
+│       │   ├── bevy_reflect v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_reflect) (*)
+│       │   ├── bevy_render v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_render) (*)
+│       │   ├── bevy_sprite v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_sprite) (*)
+│       │   ├── bevy_text v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_text) (*)
+│       │   ├── bevy_transform v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_transform) (*)
+│       │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   ├── bevy_window v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_window) (*)
+│       │   ├── bytemuck v1.9.1 (*)
+│       │   ├── serde v1.0.137 (*)
+│       │   ├── smallvec v1.8.0 (*)
+│       │   └── stretch v0.3.2
+│       │       ├── lazy_static v1.4.0
+│       │       └── libm v0.1.4
+│       ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       ├── bevy_window v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_window) (*)
+│       └── bevy_winit v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_winit)
+│           ├── approx v0.5.1 (*)
+│           ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
+│           ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
+│           ├── bevy_input v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_input) (*)
+│           ├── bevy_math v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_math) (*)
+│           ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│           ├── bevy_window v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_window) (*)
+│           ├── raw-window-handle v0.4.3 (*)
+│           └── winit v0.26.1
+│               ├── bitflags v1.3.2
+│               ├── instant v0.1.12 (*)
+│               ├── lazy_static v1.4.0
+│               ├── log v0.4.17 (*)
+│               ├── parking_lot v0.11.2 (*)
+│               ├── raw-window-handle v0.4.3 (*)
+│               └── winapi v0.3.9
+├── bevy_egui v0.14.0 (C:\Users\robfm\Documents\gamedev\simbull\bevy_egui)
+│   ├── arboard v2.1.1
+│   │   ├── clipboard-win v4.4.1
+│   │   │   ├── error-code v2.3.1
+│   │   │   │   ├── libc v0.2.126
+│   │   │   │   └── str-buf v1.0.6
+│   │   │   ├── str-buf v1.0.6
+│   │   │   └── winapi v0.3.9
+│   │   ├── log v0.4.17 (*)
+│   │   ├── thiserror v1.0.31 (*)
+│   │   └── winapi v0.3.9
+│   ├── bevy v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy) (*)
+│   ├── egui v0.18.1
+│   │   ├── ahash v0.7.6 (*)
+│   │   ├── epaint v0.18.1
+│   │   │   ├── ab_glyph v0.2.15 (*)
+│   │   │   ├── ahash v0.7.6 (*)
+│   │   │   ├── bytemuck v1.9.1 (*)
+│   │   │   ├── emath v0.18.0
+│   │   │   │   └── bytemuck v1.9.1 (*)
+│   │   │   ├── nohash-hasher v0.2.0
+│   │   │   └── parking_lot v0.12.0
+│   │   │       ├── lock_api v0.4.7 (*)
+│   │   │       └── parking_lot_core v0.9.3
+│   │   │           ├── cfg-if v1.0.0
+│   │   │           ├── smallvec v1.8.0 (*)
+│   │   │           └── windows-sys v0.36.1
+│   │   │               └── windows_x86_64_msvc v0.36.1
+│   │   └── nohash-hasher v0.2.0
+│   ├── thread_local v1.1.4 (*)
+│   └── webbrowser v0.7.1
+│       ├── url v2.2.2
+│       │   ├── form_urlencoded v1.0.1
+│       │   │   ├── matches v0.1.9
+│       │   │   └── percent-encoding v2.1.0
+│       │   ├── idna v0.2.3
+│       │   │   ├── matches v0.1.9
+│       │   │   ├── unicode-bidi v0.3.8
+│       │   │   └── unicode-normalization v0.1.19
+│       │   │       └── tinyvec v1.6.0 (*)
+│       │   ├── matches v0.1.9
+│       │   └── percent-encoding v2.1.0
+│       ├── widestring v0.5.1
+│       └── winapi v0.3.9
+├── bevy_kira_audio v0.10.0 (C:\Users\robfm\Documents\gamedev\simbull\bevy_kira_audio)
+│   ├── anyhow v1.0.57
+│   ├── bevy v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy) (*)
+│   ├── kira v0.6.0
+│   │   ├── atomic-arena v0.1.1
+│   │   ├── cpal v0.13.5 (*)
+│   │   ├── ringbuf v0.2.8
+│   │   │   └── cache-padded v1.2.0
+│   │   └── symphonia v0.5.0
+│   │       ├── lazy_static v1.4.0
+│   │       ├── symphonia-codec-vorbis v0.5.0
+│   │       │   ├── log v0.4.17 (*)
+│   │       │   ├── symphonia-core v0.5.0
+│   │       │   │   ├── arrayvec v0.7.2
+│   │       │   │   ├── bitflags v1.3.2
+│   │       │   │   ├── bytemuck v1.9.1 (*)
+│   │       │   │   ├── lazy_static v1.4.0
+│   │       │   │   └── log v0.4.17 (*)
+│   │       │   └── symphonia-utils-xiph v0.5.0
+│   │       │       ├── symphonia-core v0.5.0 (*)
+│   │       │       └── symphonia-metadata v0.5.0
+│   │       │           ├── encoding_rs v0.8.31
+│   │       │           │   └── cfg-if v1.0.0
+│   │       │           ├── lazy_static v1.4.0
+│   │       │           ├── log v0.4.17 (*)
+│   │       │           └── symphonia-core v0.5.0 (*)
+│   │       ├── symphonia-core v0.5.0 (*)
+│   │       ├── symphonia-format-ogg v0.5.0
+│   │       │   ├── log v0.4.17 (*)
+│   │       │   ├── symphonia-core v0.5.0 (*)
+│   │       │   ├── symphonia-metadata v0.5.0 (*)
+│   │       │   └── symphonia-utils-xiph v0.5.0 (*)
+│   │       └── symphonia-metadata v0.5.0 (*)
+│   └── parking_lot v0.11.2 (*)
+├── egui_extras v0.18.0
+│   └── egui v0.18.1 (*)
+└── rand v0.8.5 (*)

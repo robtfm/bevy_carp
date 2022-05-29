@@ -1,0 +1,15 @@
+[package]
+name = "bevy_carp"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bevy = { path = "../bevy", features = ["serialize"] }
+rand = "*"
+bevy_egui = { path = "../bevy_egui" }
+egui_extras = "0.18.0"
+bevy_kira_audio = { path = "../bevy_kira_audio", features=["mp3"] }
+serde = "*"
+serde_json = "*"
