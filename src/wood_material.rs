@@ -46,9 +46,6 @@ impl SimpleTextureSpec for WoodMaterialSpec {
     fn sample_type() -> TextureSampleType {
         TextureSampleType::Uint
     }
-    // fn vertex_shader(asset_server: &AssetServer) -> Option<Handle<Shader>> {
-    //     Some(asset_server.load("shaders/vertex_angle.wgsl"))
-    // }
     fn fragment_shader(asset_server: &AssetServer) -> Option<Handle<Shader>> {
         Some(asset_server.load("shaders/wood.wgsl"))
     }

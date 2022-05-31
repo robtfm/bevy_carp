@@ -1,12 +1,14 @@
 //done
 // clean up input, make configurable. check leafwing
+// show controls in context
+// sfx
 
 //tbd
 // image generation and shader should take offset and orientation
 // store state when things change, impl undo (make sure locals are empty & emptied)
 // splash
 // music
-// options
+// options (inc keys)
 // levels
 // quotes (in and out)
 // background
@@ -14,26 +16,31 @@
 // improve cutter
 
 #![feature(let_else)]
-use std::marker::PhantomData;
 
-use serde::{Serialize, Deserialize};
+use input::{InputPlugin, ActionEvent, Controller};
 use rand::{thread_rng, Rng, prelude::{StdRng, SliceRandom}, SeedableRng};
 
-use bevy::{prelude::{*, shape::UVSphere}, render::{render_resource::{Extent3d, TextureDimension}, camera::Camera3d}, utils::{HashSet, HashMap}, ecs::{system::SystemParam, event::{Events, ManualEventReader}}, app::AppExit, window::WindowResized};
+use bevy::{prelude::{*, shape::UVSphere}, render::{render_resource::{Extent3d, TextureDimension}, camera::Camera3d}, utils::{HashSet, HashMap}, ecs::{event::{Events, ManualEventReader}}, app::AppExit, window::WindowResized};
 
-use bevy_egui::{egui, EguiContext, EguiPlugin, EguiSettings};
+use bevy_egui::{egui::{self}, EguiContext, EguiPlugin, EguiSettings};
 use egui_extras::StripBuilder;
-use bevy_kira_audio::{Audio, AudioPlugin};
+use bevy_kira_audio::{AudioPlugin, AudioApp, AudioChannel};
 
 mod bl_quad;
-mod logic;
+mod model;
 mod shader;
 mod wood_material;
+mod input;
 
-use logic::*;
+use model::*;
 use shader::SimpleTextureMaterial;
 use bl_quad::BLQuad;
 use wood_material::{WoodMaterial, WoodMaterialSpec, WoodMaterialPlugin};
+
+// audio channels
+struct MenuChannel;
+struct GrabDropChannel;
+struct HammerChannel;
 
 fn main() {
     let mut app = App::new();
@@ -42,17 +49,18 @@ fn main() {
         .add_plugin(WoodMaterialPlugin)
         .add_plugin(EguiPlugin)
         .add_plugin(AudioPlugin)
+        .add_plugin(InputPlugin)
+        .add_audio_channel::<MenuChannel>()
+        .add_audio_channel::<GrabDropChannel>()
+        .add_audio_channel::<HammerChannel>()
         .init_resource::<Level>()
         .init_resource::<LevelDef>()
         .init_resource::<LevelBase>()
         .init_resource::<LevelSet>()
-        .init_resource::<GamePadRes>()
-        .init_resource::<ActionInputs>()
         .insert_resource(AmbientLight{ color: Color::rgba(0.8, 0.8, 1.0, 1.0), brightness: 0.1 })
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.3)))
         .add_event::<SpawnLevelEvent>()
         .add_event::<PopupMenuEvent>()
-        .add_event::<ActionEvent>()
         .add_event::<CutEvent>()
         .add_event::<ResetEvent>()
 
@@ -70,7 +78,7 @@ fn main() {
         .add_system(create_level)    // (re)spawn a level
 
         // level mechanics
-        .add_system(target.before(grab_or_drop).before(cut_plank).before(hammer_home))
+        .add_system(target.before(grab_or_drop).before(hammer_home))
         .add_system(grab_or_drop)
         .add_system(rotate_plank)
         .add_system_to_stage(CoreStage::PostUpdate, cut_plank)  // despawns
@@ -86,10 +94,6 @@ fn main() {
 
         // visuals
         .add_system(update_materials)
-
-        // input
-        .add_system(pad_connection)
-        .add_system_to_stage(CoreStage::PreUpdate, controller)
 
         // system events
         .add_system_to_stage(CoreStage::PostUpdate, system_events)  // despawns
@@ -121,13 +125,15 @@ fn egui_setup(mut egui_ctx: ResMut<EguiContext>) {
     let widget_visuals = egui::style::WidgetVisuals {
         bg_fill: egui::Rgba::from_rgba_premultiplied(0.0, 0.0, 0.0, 0.8).into(),
         bg_stroke: egui::Stroke::new(1.0, egui::Rgba::from_rgba_premultiplied(0.0, 0.0, 0.0, 0.8)),
-        rounding: egui::Rounding::none(),
+        rounding: egui::Rounding::same(5.0),
         fg_stroke: egui::Stroke::new(1.0, egui::Rgba::from_rgba_premultiplied(1.0, 1.0, 1.0, 1.0)),
         expansion: 0.0,
     };
 
     let widgets = egui::style::Widgets {
-        noninteractive: widget_visuals,
+        noninteractive: widget_visuals.clone(),
+        inactive: widget_visuals.clone(),
+        active: widget_visuals.clone(),
         ..Default::default()
     };
 
@@ -174,14 +180,20 @@ struct LevelSet([Option<LevelDef>;30], usize);
 const EASY: LevelSet = LevelSet(
     [
         Some(LevelDef{ num_holes: 1, total_blocks: 3, seed: 0 }),
-        Some(LevelDef{ num_holes: 1, total_blocks: 6, seed: 0 }),
-        Some(LevelDef{ num_holes: 2, total_blocks: 10, seed: 1 }),
-        Some(LevelDef{ num_holes: 2, total_blocks: 8, seed: 0 }),
-        Some(LevelDef{ num_holes: 2, total_blocks: 10, seed: 0 }),
-        Some(LevelDef{ num_holes: 3, total_blocks: 15, seed: 0 }),
-        Some(LevelDef{ num_holes: 3, total_blocks: 20, seed: 0 }),
-        None, None, None,
-        None, None, None, None, None, None, None, None, None, None, 
+        Some(LevelDef{ num_holes: 1, total_blocks: 6, seed: 10 }),
+        Some(LevelDef{ num_holes: 2, total_blocks: 10, seed: 20 }),
+        Some(LevelDef{ num_holes: 2, total_blocks: 8, seed: 30 }),
+        Some(LevelDef{ num_holes: 2, total_blocks: 10, seed: 40 }),
+        Some(LevelDef{ num_holes: 3, total_blocks: 15, seed: 61 }),
+        Some(LevelDef{ num_holes: 3, total_blocks: 20, seed: 83 }),
+        Some(LevelDef{ num_holes: 3, total_blocks: 20, seed: 94 }),
+        Some(LevelDef{ num_holes: 3, total_blocks: 20, seed: 106 }),
+        Some(LevelDef{ num_holes: 3, total_blocks: 25, seed: 117 }),
+        Some(LevelDef{ num_holes: 3, total_blocks: 25, seed: 128 }),
+        Some(LevelDef{ num_holes: 3, total_blocks: 25, seed: 139 }),
+        Some(LevelDef{ num_holes: 3, total_blocks: 25, seed: 1411 }),
+        Some(LevelDef{ num_holes: 3, total_blocks: 15, seed: 50 }), // hard
+        None, None, None, None, None, None, 
         None, None, None, None, None, None, None, None, None, None, 
     ],
     0
@@ -301,7 +313,7 @@ fn create_level(
 
     commands.spawn().insert(Controller {
         action: vec![
-            ("pause", ("menu", true)),
+            ("pause", ("menu", true), true),
         ],
         enabled: true,
         ..Default::default()
@@ -367,6 +379,7 @@ fn create_level(
         .insert(Position(IVec2::new(0,0)))
         .insert(PositionZ(20))
         .insert(Controller{
+            display_directions: Some("Pan"),
             enabled: true,
             forward: ("zoom in", false),
             back: ("zoom out", false),
@@ -374,7 +387,7 @@ fn create_level(
             right: ("pan right", false),
             up: ("pan up", false),
             down: ("pan down", false),
-            action: vec![("focus", ("select all", true))],
+            action: vec![("focus", ("select all", true), true)],
             ..Default::default()
         })
         .id();
@@ -387,14 +400,15 @@ fn create_level(
         .insert(ExtentItem(IVec2::ONE, IVec2::ONE))
         .insert(Cursor)
         .insert(Controller{
+            display_directions: Some("Move"),
             enabled: true,
             left: ("move left", false),
             right: ("move right", false),
             up: ("move up", false),
             down: ("move down", false),
             action: vec![
-                ("grab", ("main action", true)),
-                ("cut", ("second action", true)),
+                ("grab", ("main action", true), true),
+                ("cut", ("second action", true), true),
             ],
             ..Default::default()
         })
@@ -426,16 +440,10 @@ fn create_level(
 struct ExtentItem(IVec2, IVec2);
 
 #[derive(Component)]
-struct Position(pub IVec2);
-
-#[derive(Component)]
 struct MoveSpeed(f32);
 
 #[derive(Component)]
 struct PrevPosition(pub IVec2);
-
-#[derive(Component)]
-struct PositionZ(pub i32);
 
 fn update_transforms(
     time: Res<Time>,
@@ -507,12 +515,6 @@ fn update_materials(
     }
 }
 
-struct ActionEvent{
-    sender: Entity,
-    label: &'static str,
-    target: Option<Entity>,
-}
-
 fn camera_focus(
     mut evs: EventReader<ActionEvent>,
     mut cam: Query<(&mut Position, &mut PositionZ, &PerspectiveProjection), Without<ExtentItem>>,
@@ -575,209 +577,6 @@ fn camera_focus(
     }
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-pub enum InputItem {
-    Key(KeyCode),
-    Axis(GamepadAxisType, bool),
-    Button(GamepadButtonType),
-}
-
-pub struct ActionInputs{
-    items: HashMap<&'static str, Vec<InputItem>>,
-    prev: HashSet<&'static str>,
-}
-
-impl Default for ActionInputs {
-    fn default() -> Self {
-        use InputItem::*;
-        Self{
-            items: HashMap::from_iter(vec![
-                ("menu", vec![Key(KeyCode::Escape), Button(GamepadButtonType::Start)]),
-                ("zoom in", vec![Key(KeyCode::PageUp), Button(GamepadButtonType::RightTrigger2)]),
-                ("zoom out", vec![Key(KeyCode::PageDown), Button(GamepadButtonType::LeftTrigger2)]),
-                ("pan left", vec![Key(KeyCode::Left), Axis(GamepadAxisType::RightStickX, false)]),
-                ("pan right", vec![Key(KeyCode::Right), Axis(GamepadAxisType::RightStickX, true)]),
-                ("pan up", vec![Key(KeyCode::Up), Axis(GamepadAxisType::RightStickY, true)]),
-                ("pan down", vec![Key(KeyCode::Down), Axis(GamepadAxisType::RightStickY, false)]),
-                ("select all", vec![Key(KeyCode::P), Button(GamepadButtonType::RightThumb)]),
-                ("move left", vec![Key(KeyCode::A), Axis(GamepadAxisType::LeftStickX, false), Button(GamepadButtonType::DPadLeft)]),
-                ("move right", vec![Key(KeyCode::D), Axis(GamepadAxisType::LeftStickX, true), Button(GamepadButtonType::DPadRight)]),
-                ("move up", vec![Key(KeyCode::W), Axis(GamepadAxisType::LeftStickY, true), Button(GamepadButtonType::DPadUp)]),
-                ("move down", vec![Key(KeyCode::S), Axis(GamepadAxisType::LeftStickY, false), Button(GamepadButtonType::DPadDown)]),
-                ("main action", vec![Key(KeyCode::Space), Key(KeyCode::Return), Button(GamepadButtonType::South)]),
-                ("second action", vec![Key(KeyCode::LControl), Button(GamepadButtonType::North)]),
-                ("turn left", vec![Key(KeyCode::Q), Button(GamepadButtonType::LeftTrigger)]),
-                ("turn right", vec![Key(KeyCode::E), Button(GamepadButtonType::RightTrigger)]),
-            ]),
-            prev: Default::default()
-        }
-    }
-}
-
-impl ActionInputs {
-    pub fn active(&mut self, action: (&'static str, bool), inputs: &InputParams) -> bool {
-        if !action.1 {
-            return self.check_active(action.0, inputs);
-        }
-
-        let is_active = self.check_active(action.0, inputs);
-        if is_active {
-            if !self.prev.contains(action.0) {
-                self.prev.insert(action.0);
-                return true;
-            }
-            return false;
-        } else {
-            self.prev.remove(action.0);
-            return false;
-        }
-    }
-
-    fn check_active(&self, action: &'static str, inputs: &InputParams) -> bool {
-        let Some(items) = self.items.get(action) else {
-            return false;
-        };
-
-        for item in items.iter() {
-            match item {
-                InputItem::Key(key) => {
-                    if inputs.key_input.pressed(*key) {
-                        return true;
-                    }        
-                },
-                InputItem::Axis(axis_type, right) => {
-                    if let Some(gamepad) = inputs.pad.0 {
-                        let axis = inputs.axes.get(GamepadAxis{ gamepad, axis_type: *axis_type }).unwrap();
-                        if axis > 0.5 && *right {
-                            return true;
-                        }
-                        if axis < -0.5 && !*right {
-                            return true;
-                        }
-                    }
-                },
-                InputItem::Button(button_type) => {
-                    if let Some(gamepad) = inputs.pad.0 {
-                        let button = inputs.buttons.get(GamepadButton { gamepad, button_type: *button_type }).unwrap();
-                        if button > 0.5 {
-                            return true;
-                        }
-                    }
-                },
-            }
-        }
-
-        return false;
-    }
-}
-
-#[derive(Component, Default, Clone)]
-struct Controller {
-    pub forward: (&'static str, bool),
-    pub back: (&'static str, bool),
-    pub left: (&'static str, bool),
-    pub right: (&'static str, bool),
-    pub up: (&'static str, bool),
-    pub down: (&'static str, bool),
-    pub action: Vec<(&'static str, (&'static str, bool))>,
-    pub enabled: bool,
-    pub initialized: bool,
-}
-
-#[derive(Default)]
-pub struct GamePadRes(pub Option<Gamepad>);
-
-fn pad_connection(mut pad: ResMut<GamePadRes>, mut gamepad_event: EventReader<GamepadEvent>) {
-    for event in gamepad_event.iter() {
-        match &event {
-            GamepadEvent{ gamepad, event_type: GamepadEventType::Connected } => {
-                pad.0 = Some(*gamepad);
-                println!("C");
-            }
-            GamepadEvent{ gamepad, event_type: GamepadEventType::Disconnected } => {
-                if let Some(cur_pad) = pad.0 {
-                    if &cur_pad == gamepad {
-                        pad.0 = None;
-                        println!("DC");
-                    }
-                }
-            }
-            _ => (),
-        }
-    }
-}
-
-#[derive(SystemParam)]
-pub struct InputParams<'w, 's> {
-    key_input: Res<'w, Input<KeyCode>>,
-    pad: Res<'w, GamePadRes>,
-    axes: Res<'w, Axis<GamepadAxis>>,
-    buttons: Res<'w, Axis<GamepadButton>>,
-
-    #[system_param(ignore)]
-    _marker: PhantomData<(&'w(), &'s())>
-}
-
-fn controller(
-    inputs: InputParams,
-    mut controllers: Query<(Entity, Option<&Transform>, Option<&mut Position>, Option<&mut PositionZ>, &mut Controller)>,
-    mut action: EventWriter<ActionEvent>,
-    mut mapping: ResMut<ActionInputs>,
-) {
-    // Handle key input
-    for (ent, maybe_transform, maybe_position, maybe_position_z, mut options) in controllers.iter_mut() {
-        if !options.enabled {
-            options.initialized = false;
-            continue;
-        }
-
-        if let Some(mut position_z) = maybe_position_z {
-            if mapping.active(options.forward, &inputs) {
-                if let Some(transform) = maybe_transform {
-                    position_z.0 = (transform.translation.z - 1.0).ceil() as i32;
-                } else {
-                    position_z.0 -= 1;
-                }
-            }
-            if mapping.active(options.back, &inputs) {
-                if let Some(transform) = maybe_transform {
-                    position_z.0 = (transform.translation.z + 1.0).floor() as i32;
-                } else {
-                    position_z.0 -= 1;
-                }
-            }
-        }
-
-        if let Some(mut position) = maybe_position {
-            let translation = match maybe_transform {
-                Some(transform) => transform.translation.truncate(),
-                None => position.0.as_vec2()
-            };
-    
-            if mapping.active(options.left, &inputs) {
-                position.0.x = (translation.x - 1.0).ceil() as i32;
-            }
-            if mapping.active(options.right, &inputs) {
-                position.0.x = (translation.x + 1.0).floor() as i32;
-            }
-            if mapping.active(options.down, &inputs) {
-                position.0.y = (translation.y - 1.0).ceil() as i32;
-            }
-            if mapping.active(options.up, &inputs) {
-                position.0.y = (translation.y + 1.0).floor() as i32;
-            }
-        }
-
-        for &(label, trigger) in options.action.iter() {
-            if mapping.active(trigger, &inputs) && options.initialized {
-                action.send(ActionEvent{ sender: ent, label, target: None });
-            }
-        }
-
-        options.initialized = true;
-    }
-}
-
 fn ensure_focus(
     cam: Query<Entity, With<Camera3d>>,
     cursor: Query<Entity, With<Cursor>>,
@@ -799,6 +598,8 @@ fn grab_or_drop(
     mut ev: EventReader<ActionEvent>,
     mut to_grab: Query<(Entity, &mut Transform), (With<Targeted>, Without<Selected>)>,
     mut to_drop: Query<(Entity, &mut Transform), With<Selected>>,
+    asset_server: Res<AssetServer>, 
+    audio: Res<AudioChannel<GrabDropChannel>>,
 ) {
     for ev in ev.iter() {
         if ev.label == "grab" {
@@ -815,18 +616,22 @@ fn grab_or_drop(
                         up: ("move up", false),
                         down: ("move down", false),
                         action: vec![
-                            ("rot_left", ("turn left", true)),
-                            ("rot_right", ("turn right", true)),
+                            ("rot_left", ("turn left", true), true),
+                            ("rot_right", ("turn right", true), true),
                         ],
                         ..Default::default()
                     });
                 trans.translation.z = 0.3;
+                audio.set_playback_rate(1.0);
+                audio.play(asset_server.load("audio/zapsplat_multimedia_pop_up_tone_short_010_78862.mp3"));
             }
 
             if let Ok((droppee, mut trans)) = to_drop.get_single_mut() {
                 println!("drop");
                 commands.entity(droppee).remove::<Selected>().remove::<Controller>();
                 trans.translation.z = 0.3;
+                audio.set_playback_rate(1.0);
+                audio.play(asset_server.load("audio/zapsplat_multimedia_pop_up_tone_short_011_78863.mp3"));
             }
         }
     }
@@ -947,6 +752,8 @@ fn cut_plank(
     mut std_mats: ResMut<Assets<StandardMaterial>>,
     mut mats: ResMut<Assets<WoodMaterial>>,
     mut images: ResMut<Assets<Image>>,
+    asset_server: Res<AssetServer>, 
+    audio: Res<AudioChannel<GrabDropChannel>>,
 ) {
     for ev in ev.iter() {
         if ev.label == "cancel" {
@@ -965,6 +772,8 @@ fn cut_plank(
                 }
                 commands.entity(cutter).despawn_recursive();
                 end_cut.send(CutEvent::CancelCut);
+                audio.play(asset_server.load("audio/industrial_tools_hand_saw_hang_on_hook.mp3"));
+
                 continue;
             }
         }
@@ -1014,8 +823,8 @@ fn cut_plank(
                             up: ("move up", false),
                             down: ("move down", false),
                             action: vec![
-                                ("finish cut", ("main action", true)),
-                                ("cancel", ("second action", true)),
+                                ("finish cut", ("main action", true), true),
+                                ("cancel", ("second action", true), true),
                             ],
                             ..Default::default()
                         })
@@ -1027,6 +836,8 @@ fn cut_plank(
                                 ..Default::default()
                             });      
                         });
+
+                    audio.play(asset_server.load("audio/industrial_tools_hand_saw_remove_from_hook.mp3"));
                 }
             }
         }
@@ -1082,6 +893,8 @@ fn cut_plank(
                         }
                         commands.entity(cutter).despawn_recursive();
                         end_cut.send(CutEvent::CancelCut);        
+
+                        audio.play(asset_server.load("audio/zapsplat_industrial_hand_saw_sawing_wood_hollow_fast_pace_short_71000-[AudioTrimmer.com].mp3"));
                     }
                 }
             }
@@ -1281,7 +1094,7 @@ fn hammer_home(
     mut meshes: ResMut<Assets<Mesh>>,
     mut mats: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>, 
-    audio: Res<Audio>,
+    audio: Res<AudioChannel<HammerChannel>>,
 ) {
     let Ok(hole_pos) = holes.get_single() else {
         return;
@@ -1290,7 +1103,12 @@ fn hammer_home(
     let (mesh, mat) = data.get_or_insert_with(|| {
         (
             meshes.add(shape::UVSphere{ radius: 0.15, sectors: 10, stacks: 10 }.into()),
-            mats.add(Color::BLACK.into())
+            mats.add(StandardMaterial{
+                base_color: Color::GRAY.into(),
+                metallic: 1.0,
+                perceptual_roughness: 0.9,
+                ..Default::default()
+            }),
         )
     });
 
@@ -1311,6 +1129,7 @@ fn hammer_home(
                 let mut coords = shifted.coords.iter().collect::<Vec<_>>();
                 coords.shuffle(&mut rng);
                 
+                audio.set_playback_rate(rng.gen_range(1.0..1.5));
                 audio.play(asset_server.load("audio/aaj_0404_HamrNail4Hits.mp3"));
 
                 for coord in coords.into_iter().take(rng.gen_range(1..=max)) {
@@ -1512,6 +1331,8 @@ fn spawn_popup_menu(
     menu_items: Query<Entity, With<MenuItem>>,
     mut active_menu: Local<Option<(PopupMenu, Entity)>>,
     mut menu_position: Local<usize>,
+    asset_server: Res<AssetServer>, 
+    audio: Res<AudioChannel<MenuChannel>>,
 ) {
     for ev in spawn_evs.iter() {
         for (ent, mut controller) in other_controllers.iter_mut() {
@@ -1523,15 +1344,15 @@ fn spawn_popup_menu(
             .spawn()
             .insert(Controller {
                 action: vec![
-                    ("up", ("move up", true)),
-                    ("up", ("pan up", true)),
-                    ("up", ("zoom in", true)),
-                    ("down", ("move down", true)),
-                    ("down", ("pan down", true)),
-                    ("down", ("zoom out", true)),
-                    ("cancel", ("menu", true)),
-                    ("cancel", ("second action", true)),
-                    ("select", ("main action", true)),
+                    ("up", ("move up", true), false),
+                    ("up", ("pan up", true), true),
+                    ("up", ("zoom in", true), false),
+                    ("down", ("move down", true), false),
+                    ("down", ("pan down", true), true),
+                    ("down", ("zoom out", true), false),
+                    ("cancel", ("menu", true), false),
+                    ("cancel", ("second action", true), true),
+                    ("select", ("main action", true), true),
                 ],
                 enabled: true,
                 ..Default::default()
@@ -1556,13 +1377,13 @@ fn spawn_popup_menu(
                     strip.cell(|ui| {
 
                         let heading = egui::RichText::from(menu.heading.as_str()).size(100.0);
-                        ui.centered_and_justified(|ui| ui.label(heading));
+                        ui.vertical_centered(|ui| ui.label(heading));
                     });
 
                     for (i, (text, _)) in menu.items.iter().enumerate() {
                         strip.cell(|ui| {
                             let text = egui::RichText::from(text).size(60.0);
-                            ui.centered_and_justified(|ui| {
+                            ui.vertical_centered(|ui| {
                                 if i == *menu_position {
                                     ui.label(text.background_color(egui::Rgba::from_rgba_premultiplied(0.2, 0.2, 0.2, 0.2)));
                                 } else {
@@ -1586,9 +1407,13 @@ fn spawn_popup_menu(
                     } else {
                         *menu_position -= 1;
                     }
+                    audio.set_playback_rate(1.2);
+                    audio.play(asset_server.load("audio/zapsplat_multimedia_alert_mallet_hit_short_single_generic_003_79278.mp3"));
                 }
                 "down" => {
                     *menu_position = (*menu_position + 1) % active_menu.as_ref().unwrap().0.items.len();
+                    audio.set_playback_rate(1.2);
+                    audio.play(asset_server.load("audio/zapsplat_multimedia_alert_mallet_hit_short_single_generic_003_79278.mp3"));
                 }
                 "cancel" => {
                     let Some(cancel_action) = active_menu.as_ref().unwrap().0.cancel_action else {
@@ -1607,6 +1432,8 @@ fn spawn_popup_menu(
 
                     to_send = Some(ActionEvent{ sender: ev.sender, label: cancel_action, target: None });
                     *active_menu = None;
+                    audio.set_playback_rate(1.2);
+                    audio.play(asset_server.load("audio/zapsplat_multimedia_game_sound_game_show_correct_tone_bright_positive_006_80747.mp3"));
                 },
                 "select" => {
                     for item in menu_items.iter() {
@@ -1621,6 +1448,8 @@ fn spawn_popup_menu(
 
                     let (menu, sender) = active_menu.take().unwrap();
                     to_send = Some(ActionEvent{ sender: sender, label: menu.items[*menu_position].1, target: None });
+                    audio.set_playback_rate(1.2);
+                    audio.play(asset_server.load("audio/zapsplat_multimedia_game_sound_game_show_correct_tone_bright_positive_006_80747.mp3"));
                 }
                 _ => ()
             }
