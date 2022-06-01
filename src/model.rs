@@ -2,12 +2,6 @@ use bevy::utils::HashSet;
 use bevy::prelude::*;
 use rand::{Rng, prelude::{SliceRandom, StdRng}};
 
-#[derive(Component)]
-pub struct Position(pub IVec2);
-
-#[derive(Component)]
-pub struct PositionZ(pub i32);
-
 pub fn neighbours() -> [IVec2;4] {
     [IVec2::X, IVec2::Y, -IVec2::X, -IVec2::Y]
 }

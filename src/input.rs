@@ -6,7 +6,7 @@ use bevy::{prelude::*, ecs::system::SystemParam, utils::{HashMap, HashSet}};
 use bevy_egui::{egui, EguiContext};
 use egui_extras::StripBuilder;
 
-use crate::model::{Position, PositionZ};
+use crate::structs::{ActionEvent, Position, PositionZ};
 
 pub struct InputPlugin;
 
@@ -27,12 +27,6 @@ impl Plugin for InputPlugin {
 
             ;
     }
-}
-
-pub struct ActionEvent{
-    pub sender: Entity,
-    pub label: &'static str,
-    pub target: Option<Entity>,
 }
 
 #[derive(Default)]

@@ -17,13 +17,13 @@
 
 #![feature(let_else)]
 
-use input::{InputPlugin, ActionEvent, Controller};
+use input::{InputPlugin, Controller};
+use menus::{spawn_main_menu, spawn_play_menu, spawn_in_level_menu, spawn_popup_menu};
 use rand::{thread_rng, Rng, prelude::{StdRng, SliceRandom}, SeedableRng};
 
-use bevy::{prelude::{*, shape::UVSphere}, render::{render_resource::{Extent3d, TextureDimension}, camera::Camera3d}, utils::{HashSet, HashMap}, ecs::{event::{Events, ManualEventReader}}, app::AppExit, window::WindowResized};
+use bevy::{prelude::{*, shape::UVSphere}, render::{render_resource::{Extent3d, TextureDimension}, camera::Camera3d}, utils::{HashSet, HashMap}, app::AppExit, window::WindowResized};
 
 use bevy_egui::{egui::{self}, EguiContext, EguiPlugin, EguiSettings};
-use egui_extras::StripBuilder;
 use bevy_kira_audio::{AudioPlugin, AudioApp, AudioChannel};
 
 mod bl_quad;
@@ -31,16 +31,16 @@ mod model;
 mod shader;
 mod wood_material;
 mod input;
+mod menus;
+mod structs;
 
 use model::*;
 use shader::SimpleTextureMaterial;
 use bl_quad::BLQuad;
+use structs::{ActionEvent, PositionZ, SpawnLevelEvent, LevelDef, MenuChannel, GrabDropChannel, HammerChannel, PopupMenuEvent};
 use wood_material::{WoodMaterial, WoodMaterialSpec, WoodMaterialPlugin};
 
-// audio channels
-struct MenuChannel;
-struct GrabDropChannel;
-struct HammerChannel;
+use crate::{structs::{Position, PopupMenu}};
 
 fn main() {
     let mut app = App::new();
@@ -68,10 +68,11 @@ fn main() {
         .add_startup_system(egui_setup)
         .add_system(handle_window_resize)
 
-        // main menu
+        // menus
         .add_startup_system(setup_main_menu)
         .add_system(spawn_main_menu)
         .add_system(spawn_play_menu)
+        .add_system(spawn_in_level_menu)
 
         // setup level
         .add_system(setup_level)    // generate the level
@@ -87,7 +88,6 @@ fn main() {
         .add_system(hammer_home)
         .add_system(ensure_focus) // focus cursor and selected
         .add_system(update_transforms)
-        .add_system(spawn_in_level_menu)
 
         // menus
         .add_system(spawn_popup_menu)
@@ -175,7 +175,7 @@ fn handle_window_resize(
 }
 
 #[derive(Default, Clone)]
-struct LevelSet([Option<LevelDef>;30], usize);
+pub struct LevelSet([Option<LevelDef>;30], usize);
 
 const EASY: LevelSet = LevelSet(
     [
@@ -198,17 +198,6 @@ const EASY: LevelSet = LevelSet(
     ],
     0
 );
-
-#[derive(Clone, Default)]
-struct LevelDef {
-    num_holes: usize,
-    total_blocks: usize,
-    seed: u64,
-}
-
-struct SpawnLevelEvent {
-    def: LevelDef,
-}
 
 fn spawn_random(
     spawn_evs: &mut EventWriter<SpawnLevelEvent>,
@@ -622,7 +611,7 @@ fn grab_or_drop(
                         ..Default::default()
                     });
                 trans.translation.z = 0.3;
-                audio.set_playback_rate(1.0);
+                audio.set_playback_rate(1.1);
                 audio.play(asset_server.load("audio/zapsplat_multimedia_pop_up_tone_short_010_78862.mp3"));
             }
 
@@ -630,7 +619,7 @@ fn grab_or_drop(
                 println!("drop");
                 commands.entity(droppee).remove::<Selected>().remove::<Controller>();
                 trans.translation.z = 0.3;
-                audio.set_playback_rate(1.0);
+                audio.set_playback_rate(1.1);
                 audio.play(asset_server.load("audio/zapsplat_multimedia_pop_up_tone_short_011_78863.mp3"));
             }
         }
@@ -1200,6 +1189,8 @@ fn system_events(
                 } else {
                     spawn_random(&mut spawn_event);
                 }
+
+                reset_events.send_default();
             }
             "restart" => {
                 for ent in all.iter() {
@@ -1215,249 +1206,6 @@ fn system_events(
             }
             _ => ()
         }
-    }
-}
-
-#[derive(Clone)]
-struct PopupMenu {
-    heading: String,
-    items: Vec<(String, &'static str)>,
-    cancel_action: Option<&'static str>,
-}
-
-struct PopupMenuEvent {
-    sender: Entity,
-    menu: PopupMenu,
-}
-
-#[derive(Component)]
-struct MenuItem;
-
-#[derive(Component)]
-struct MenuSelect;
-
-fn spawn_main_menu(
-    mut evs: EventReader<ActionEvent>,
-    mut spawn: EventWriter<PopupMenuEvent>,
-) {
-    for ev in evs.iter() {
-        if ev.label == "main menu" {
-            spawn.send(PopupMenuEvent { 
-                sender: ev.sender, 
-                menu: PopupMenu {
-                    heading: "Main Menu".into(),
-                    items: vec![
-                        ("Play".into(), "play"),
-                        ("Options".into(), "options"),
-                        ("Quit to Desktop".into(), "quit"),
-                    ],
-                    cancel_action: None, 
-                }
-            })
-        }
-    }
-}
-
-fn spawn_play_menu(
-    evs: ResMut<Events<ActionEvent>>,
-    mut reader: Local<ManualEventReader<ActionEvent>>,
-    mut spawn_menu: EventWriter<PopupMenuEvent>,
-    mut spawn_level: EventWriter<SpawnLevelEvent>,
-    mut levelset: ResMut<LevelSet>,
-) {
-    for ev in reader.iter(&evs) {
-        match ev.label {
-            "play" => {
-                spawn_menu.send(PopupMenuEvent { 
-                    sender: ev.sender, 
-                    menu: PopupMenu {
-                        heading: "Choose Difficulty".into(),
-                        items: vec![
-                            ("Easy".into(), "play easy"),
-                            ("Medium".into(), "play medium"),
-                            ("Hard".into(), "play hard"),
-                            ("Random".into(), "play random"),
-                        ],
-                        cancel_action: Some("main menu"), 
-                    }
-                });
-            }
-            "play easy" => {
-                *levelset = EASY.clone();
-                spawn_level.send(SpawnLevelEvent { def: EASY.0[0].as_ref().unwrap().clone() });
-            }
-            "play random" => {
-                *levelset = LevelSet::default();
-                spawn_random(&mut spawn_level);
-            }
-            _ => ()
-        }
-
-    }
-}
-
-fn spawn_in_level_menu(
-    mut evs: EventReader<ActionEvent>,
-    level: Res<LevelDef>,
-    mut spawn: EventWriter<PopupMenuEvent>,
-) {
-    for ev in evs.iter() {
-        if ev.label == "pause" {
-            spawn.send(PopupMenuEvent { 
-                sender: ev.sender, 
-                menu: PopupMenu {
-                    heading: format!("Paused\n[{}/{}/{}]", level.num_holes, level.total_blocks, level.seed),
-                    items: vec![
-                        ("Resume".into(), "cancel"),
-                        ("Restart Level".into(), "restart"),
-                        ("Main Menu".into(), "main menu"),
-                        ("Quit to Desktop".into(), "quit"),
-                    ],
-                    cancel_action: Some("cancel"),
-                }
-            })
-        }
-    }
-}
-
-fn spawn_popup_menu(
-    mut commands: Commands,
-    mut other_controllers: Query<(Entity, &mut Controller), Without<MenuItem>>,
-    mut prev_controller_state: Local<HashMap<Entity, bool>>,
-    mut spawn_evs: EventReader<PopupMenuEvent>,
-    mut actions: ResMut<Events<ActionEvent>>,
-    mut action_reader: Local<ManualEventReader<ActionEvent>>,
-    mut egui_context: ResMut<EguiContext>,
-    menu_items: Query<Entity, With<MenuItem>>,
-    mut active_menu: Local<Option<(PopupMenu, Entity)>>,
-    mut menu_position: Local<usize>,
-    asset_server: Res<AssetServer>, 
-    audio: Res<AudioChannel<MenuChannel>>,
-) {
-    for ev in spawn_evs.iter() {
-        for (ent, mut controller) in other_controllers.iter_mut() {
-            prev_controller_state.insert(ent, controller.enabled);
-            controller.enabled = false;
-        }
-
-        commands
-            .spawn()
-            .insert(Controller {
-                action: vec![
-                    ("up", ("move up", true), false),
-                    ("up", ("pan up", true), true),
-                    ("up", ("zoom in", true), false),
-                    ("down", ("move down", true), false),
-                    ("down", ("pan down", true), true),
-                    ("down", ("zoom out", true), false),
-                    ("cancel", ("menu", true), false),
-                    ("cancel", ("second action", true), true),
-                    ("select", ("main action", true), true),
-                ],
-                enabled: true,
-                ..Default::default()
-            })
-            .insert(Position(IVec2::ZERO))
-            .insert(MenuItem)
-            .insert(Permanent);
-
-        println!("menu");
-
-        *active_menu = Some((ev.menu.clone(), ev.sender));
-        *menu_position = 0;
-    }
-
-    if let Some((menu, _)) = active_menu.as_ref() {
-        egui::CentralPanel::default().show(egui_context.ctx_mut(), |ui| {
-            StripBuilder::new(ui)
-                .size(egui_extras::Size::relative(0.33))
-                .sizes(egui_extras::Size::relative(0.5 / menu.items.len() as f32), menu.items.len())
-                .size(egui_extras::Size::remainder())
-                .vertical(|mut strip| {
-                    strip.cell(|ui| {
-
-                        let heading = egui::RichText::from(menu.heading.as_str()).size(100.0);
-                        ui.vertical_centered(|ui| ui.label(heading));
-                    });
-
-                    for (i, (text, _)) in menu.items.iter().enumerate() {
-                        strip.cell(|ui| {
-                            let text = egui::RichText::from(text).size(60.0);
-                            ui.vertical_centered(|ui| {
-                                if i == *menu_position {
-                                    ui.label(text.background_color(egui::Rgba::from_rgba_premultiplied(0.2, 0.2, 0.2, 0.2)));
-                                } else {
-                                    ui.label(text);
-                                }
-                            });
-                        });
-                    }
-                });
-        });
-    }
-
-    let mut to_send = None;
-
-    for ev in action_reader.iter(&actions) {
-        if menu_items.get(ev.sender).is_ok() {
-            match ev.label {
-                "up" => {
-                    if *menu_position == 0 {
-                        *menu_position = active_menu.as_ref().unwrap().0.items.len() - 1;
-                    } else {
-                        *menu_position -= 1;
-                    }
-                    audio.set_playback_rate(1.2);
-                    audio.play(asset_server.load("audio/zapsplat_multimedia_alert_mallet_hit_short_single_generic_003_79278.mp3"));
-                }
-                "down" => {
-                    *menu_position = (*menu_position + 1) % active_menu.as_ref().unwrap().0.items.len();
-                    audio.set_playback_rate(1.2);
-                    audio.play(asset_server.load("audio/zapsplat_multimedia_alert_mallet_hit_short_single_generic_003_79278.mp3"));
-                }
-                "cancel" => {
-                    let Some(cancel_action) = active_menu.as_ref().unwrap().0.cancel_action else {
-                        continue;
-                    };
-
-                    for item in menu_items.iter() {
-                        commands.entity(item).despawn_recursive();
-                    }
-
-                    for (ent, mut controller) in other_controllers.iter_mut() {
-                        if let Some(prev) = prev_controller_state.get(&ent) {
-                            controller.enabled = *prev;
-                        }
-                    }
-
-                    to_send = Some(ActionEvent{ sender: ev.sender, label: cancel_action, target: None });
-                    *active_menu = None;
-                    audio.set_playback_rate(1.2);
-                    audio.play(asset_server.load("audio/zapsplat_multimedia_game_sound_game_show_correct_tone_bright_positive_006_80747.mp3"));
-                },
-                "select" => {
-                    for item in menu_items.iter() {
-                        commands.entity(item).despawn_recursive();
-                    }
-
-                    for (ent, mut controller) in other_controllers.iter_mut() {
-                        if let Some(prev) = prev_controller_state.get(&ent) {
-                            controller.enabled = *prev;
-                        }
-                    }
-
-                    let (menu, sender) = active_menu.take().unwrap();
-                    to_send = Some(ActionEvent{ sender: sender, label: menu.items[*menu_position].1, target: None });
-                    audio.set_playback_rate(1.2);
-                    audio.play(asset_server.load("audio/zapsplat_multimedia_game_sound_game_show_correct_tone_bright_positive_006_80747.mp3"));
-                }
-                _ => ()
-            }
-        }
-    }
-
-    if let Some(event) = to_send {
-        actions.send(event);
     }
 }
 
