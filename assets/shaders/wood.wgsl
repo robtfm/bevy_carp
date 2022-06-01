@@ -2,9 +2,10 @@
 #import bevy_pbr::mesh_struct
 
 struct WoodMaterial {
-    data: vec4<f32>;
     hilight_color: vec4<f32>;
+    texture_offset: vec2<f32>;
     size: vec2<u32>;
+    turns: u32;
     is_plank: u32;
 };
 [[group(1), binding(0)]]
@@ -106,10 +107,16 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 
 [[stage(fragment)]]
 fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
-    var color = wood_texture(vec3<f32>(in.uv * 0.17 + material.data.rg * 20.0, 0.25));
+    var texture_uv = in.uv - vec2<f32>(0.5);
+    for (var i: u32 = 0u; i<material.turns; i=i+1u) {
+        texture_uv = vec2<f32>(texture_uv.y, -texture_uv.x);
+    }
+    texture_uv = texture_uv + material.texture_offset;
+    var color = wood_texture(vec3<f32>(texture_uv * 0.17, 0.25));
 
     let pixel_uv = in.uv;
     let tile = vec2<i32>(pixel_uv);
+    let material_tile = vec2<i32>(texture_uv);
     var alpha = 0.0;
     var hilight_alpha = 0.0;
 
@@ -145,7 +152,8 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
         }
 
         if (!is_hole_left) {
-            let jag = range * noise(pixel_uv.y, 10.0, f32(tile.x));
+            // let jag = range * noise(texture_uv.y, 10.0, f32(material_tile.x));
+            let jag = range * (1.0 - noise(pixel_uv.y, 10.0, f32(material_tile.x)));
             let distance = residual.x + base - jag;
             if (distance < 0.0) {
                 alpha = 1.0;
@@ -155,7 +163,7 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
         } 
         
         if (!is_hole_right) {
-            let jag = range * noise(pixel_uv.y, 10.0, f32(tile.x + 1));
+            let jag = range * noise(pixel_uv.y, 10.0, f32(material_tile.x + 1));
             let distance = -residual.x + base - jag;
             if (distance < 0.0) {
                 alpha = 1.0;
@@ -165,7 +173,8 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
         }
 
         if (!is_hole_up) {
-            let jag = range * noise(pixel_uv.x, 10.0, f32(tile.y));
+            // let jag = range * noise(texture_uv.x, 10.0, f32(material_tile.y));
+            let jag = range * (1.0 - noise(pixel_uv.x, 10.0, f32(material_tile.y)));
             let distance = residual.y + base - jag;
             if (distance < 0.0) {
                 alpha = 1.0;
@@ -175,7 +184,7 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
         } 
         
         if (!is_hole_down) {
-            let jag = range * noise(pixel_uv.x, 10.0, f32(tile.y + 1));
+            let jag = range * noise(pixel_uv.x, 10.0, f32(material_tile.y + 1));
             let distance = -residual.y + base - jag;
             if (distance < 0.0) {
                 alpha = 1.0;
@@ -192,8 +201,12 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
                     let offset = residual * vec2<f32>(f32(x), f32(y)) - 0.5;
                     let x_ratio = (offset.x / (offset.x + offset.y));
 
-                    jag = range * (noise(pixel_uv.x, 10.0, f32(tile.y + (y + 1) / 2)) * (1.0 - x_ratio) + 
-                                    noise(pixel_uv.y, 10.0, f32(tile.x + (x + 1) / 2)) * x_ratio);
+                    var x_noise = noise(pixel_uv.x, 10.0, f32(material_tile.y + (y + 1) / 2));
+                    var y_noise = noise(pixel_uv.y, 10.0, f32(material_tile.x + (x + 1) / 2));
+                    if (y < 0) { x_noise = 1.0 - x_noise; }
+                    if (x < 0) { y_noise = 1.0 - y_noise; }
+
+                    jag = range * (x_noise * (1.0 - x_ratio) + y_noise * x_ratio);
 
                     let distance = sqrt(dot(offset, offset)) - (0.5 - base) - jag;
                     if (distance < 0.0) {
@@ -208,7 +221,8 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
         let far = vec2<f32>(material.size) - pixel_uv;
         let min_uv = min(
             min(pixel_uv.x, pixel_uv.y),
-            min(far.x, far.y));
+            min(far.x, far.y)
+        );
 
         if (min_uv < 0.1) {
             return vec4<f32>(0.0, 0.0, 0.0, max(0.0, min_uv / 0.2));

@@ -2,6 +2,8 @@ use bevy::utils::HashSet;
 use bevy::prelude::*;
 use rand::{Rng, prelude::{SliceRandom, StdRng}};
 
+use crate::structs::Position;
+
 pub fn neighbours() -> [IVec2;4] {
     [IVec2::X, IVec2::Y, -IVec2::X, -IVec2::Y]
 }
@@ -10,16 +12,24 @@ pub fn neighbours() -> [IVec2;4] {
 pub struct Level {
     pub extents: IVec2,
     pub holes: Holes,
-    pub plank: Plank,
+    pub planks: Vec<(Plank, Position)>,
     pub setup: bool,
 }
 
+// holds the built level in initial state. probably not necessary with reproduceable seeded builds, could just use LevelDef
 #[derive(Default)]
 pub struct LevelBase(pub Level);
+
+pub struct UndoBuffer {
+    state: Vec<(Level, Position)>,
+    pos: usize,
+}
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct CoordSet {
     pub coords: HashSet<IVec2>,
+    pub turns: usize,
+    pub texture_offset: IVec2,
 }
 
 impl CoordSet {
@@ -67,16 +77,23 @@ impl CoordSet {
 
     pub fn rotate(&mut self) {
         self.coords = HashSet::from_iter(self.coords.drain().map(|c| IVec2::new(-c.y, c.x)));
+        self.turns = (self.turns + 1) % 4;
     }
 
     pub fn normalize(mut self) -> Self {
         let exts = self.extents();
         self.coords = HashSet::from_iter(self.coords.drain().map(|c| c - IVec2::new(exts.0.0, exts.1.0)));
+        self.turns = 0;
         self
     }
 
-    pub fn shift(&mut self, by: IVec2) {
+    pub fn shift(&mut self, mut by: IVec2) {
         self.coords = HashSet::from_iter(self.coords.drain().map(|c| c + by));
+
+        for _ in 0..self.turns {
+            by = IVec2::new(by.y, -by.x);
+        }
+        self.texture_offset -= by;
     }
 
     pub fn merge<'a>(holes: impl Iterator<Item=&'a CoordSet>) -> Hole {
@@ -85,7 +102,7 @@ impl CoordSet {
             coords.extend(hole.coords.iter());
         }
 
-        Hole { coords }
+        Hole { coords, ..Default::default() }
     }
 }
 
@@ -132,7 +149,7 @@ impl Plank {
         let mut indexes = (0..holes.holes.len()).collect::<Vec<_>>();
         indexes.shuffle(&mut rng);
 
-        let mut plank = Plank { coords: holes.holes[indexes[0]].coords.clone() };
+        let mut plank = Plank { coords: holes.holes[indexes[0]].coords.clone(), ..Default::default() };
 
         for i in 1..indexes.len() {
             plank = plank.attach_hole(&holes.holes[indexes[i]], &mut rng);
@@ -141,7 +158,8 @@ impl Plank {
         for _ in 0..rng.gen_range(0..4) {
             plank.rotate();
         }
-        
+
+        plank.texture_offset = IVec2::new(rng.gen_range(0..1000), rng.gen_range(0..1000));
         plank.normalize()
     }
 
@@ -177,7 +195,7 @@ impl Plank {
 }
 
 pub fn gen_hole(size: usize, rng: &mut StdRng) -> Hole {
-    let mut hole = Hole{ coords: HashSet::from_iter(std::iter::once(IVec2::ZERO)) };
+    let mut hole = Hole{ coords: HashSet::from_iter(std::iter::once(IVec2::ZERO)), ..Default::default() };
 
     for _ in 1..size {
         let extents = hole.extents();

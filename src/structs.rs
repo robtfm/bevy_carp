@@ -7,10 +7,10 @@ pub struct ActionEvent{
 }
 
 
-#[derive(Component)]
+#[derive(Component, Clone, Default)]
 pub struct Position(pub IVec2);
 
-#[derive(Component)]
+#[derive(Component, Clone, Default)]
 pub struct PositionZ(pub i32);
 
 
@@ -26,6 +26,7 @@ pub struct SpawnLevelEvent {
 }
 
 // audio channels
+
 pub struct MenuChannel;
 pub struct GrabDropChannel;
 pub struct HammerChannel;

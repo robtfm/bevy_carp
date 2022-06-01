@@ -254,7 +254,7 @@ fn setup_level(
         println!("uber hole: [{:?}] \n{}", uber_hole.extents(), uber_hole);
         println!("plank: [{:?}]\n{}", plank.extents(), plank);
     
-        *base = LevelBase(Level { extents, holes, plank, setup: true });
+        *base = LevelBase(Level { extents, holes, planks: vec![(plank, Position::default())], setup: true });
         *def = ev.def.clone();
         action_evs.send(ActionEvent{ sender: Entity::from_raw(0), label: "restart", target: None});
     }
@@ -314,7 +314,8 @@ fn create_level(
     let quad = BLQuad::new(size.as_vec2(), Vec2::ZERO);
 
     let hole_spec = WoodMaterialSpec {
-        data: Vec4::new(rng.gen_range(0.0..1.0), rng.gen_range(0.0..1.0), 0.0, 0.0),
+        texture_offset: Vec2::new(rng.gen_range(0.0..1000.0), rng.gen_range(0.0..1000.0)),
+        turns: 0,
         hilight_color: Color::rgba(0.0, 0.0, 0.0, 1.0),
         size: size.as_uvec2(),
         is_plank: false,
@@ -333,15 +334,19 @@ fn create_level(
         .insert(MHoles)
         .id();
 
-    let size = level.plank.size() + 2;
+    let size = level.planks[0].0.size() + 2;
     let quad = BLQuad::new(size.as_vec2(), Vec2::ZERO);
+    level.planks[0].0.texture_offset = IVec2::new(rng.gen_range(0..100), rng.gen_range(0..100));
     let plank_spec = WoodMaterialSpec {
-        data: Vec4::new(rng.gen_range(0.0..1.0), rng.gen_range(0.0..1.0), 0.0, 0.0),
+        texture_offset: level.planks[0].0.texture_offset.as_vec2(),
+        turns: level.planks[0].0.turns,
         hilight_color: Color::rgba(0.2, 0.2, 1.0, 1.0),
         size: size.as_uvec2(),
         is_plank: true,
-        base_color_texture: create_coordset_image(&mut images, std::iter::once(&level.plank)),
+        base_color_texture: create_coordset_image(&mut images, std::iter::once(&level.planks[0].0)),
     };
+
+    println!("plank offset: {}", level.planks[0].0.texture_offset);
 
     let pos = IVec2::new(-size.x / 2, -size.y - 1);
     let mat_handle = mats.add(SimpleTextureMaterial( plank_spec ));
@@ -350,7 +355,7 @@ fn create_level(
         .insert(GlobalTransform::default())
         .insert(ExtentItem(IVec2::ZERO, size))
         .insert(Position(pos))
-        .insert(PlankComponent(level.plank.clone(), mat_handle.clone_weak()))
+        .insert(PlankComponent(level.planks[0].0.clone(), mat_handle.clone_weak()))
         .with_children(|p| {
             p.spawn_bundle(MaterialMeshBundle {
                 mesh: meshes.add(quad.into()),
@@ -359,6 +364,8 @@ fn create_level(
             });
         })
         .id();
+
+    debug_plank_mats(&level.planks[0].0);
 
     let cam_id = commands.spawn_bundle(PerspectiveCameraBundle{
         perspective_projection: PerspectiveProjection{ fov: std::f32::consts::PI / 4.0, ..Default::default() },
@@ -717,7 +724,10 @@ impl Cut {
                     second.insert(*item);
                 }
             }
-            return Some([Plank{coords: connected}, Plank{coords: second}]);
+            return Some([
+                Plank{coords: connected, turns: plank.turns, texture_offset: plank.texture_offset}, 
+                Plank{coords: second, turns: plank.turns, texture_offset: plank.texture_offset}
+            ]);
         }
 
         return None;
@@ -833,20 +843,28 @@ fn cut_plank(
 
         if ev.label == "finish cut" {
             if let Ok((cutter, cut)) = cut.get(ev.sender) {
-                if let Ok((selected_ent, pos, plank)) = targeted.get_single() {
+                if let Ok((selected_ent, pos, base_plank)) = targeted.get_single() {
                     if cut.finished {
-                        let mut rng = thread_rng();
-                        let planks = cut.split(&plank.0).unwrap();
+                        println!("base");
+                        debug_plank_mats(&base_plank.0);
+
+                        // let mut rng = thread_rng();
+                        let planks = cut.split(&base_plank.0).unwrap();
                         commands.entity(selected_ent).despawn_recursive();
 
                         for mut plank in planks.into_iter() {
                             let size = plank.size() + 2;
                             let shift = IVec2::new(-plank.extents().0.0 + 1, -plank.extents().1.0 + 1);
                             plank.shift(shift);
+
+                            println!("shift: {}, base offset: {}, new offset: {}", shift, base_plank.0.texture_offset, plank.texture_offset);
+                            debug_plank_mats(&plank);
+
                             let pos = pos.0 - shift;
                             let quad = BLQuad::new(size.as_vec2(), Vec2::ZERO);
                             let plank_spec = WoodMaterialSpec {
-                                data: Vec4::new(rng.gen_range(0.0..1.0), rng.gen_range(0.0..1.0), 0.0, 0.0),
+                                texture_offset: plank.texture_offset.as_vec2(),
+                                turns: base_plank.0.turns,
                                 hilight_color: Color::rgba(0.2, 0.2, 1.0, 1.0),
                                 size: size.as_uvec2(),
                                 is_plank: true,
@@ -888,6 +906,20 @@ fn cut_plank(
                 }
             }
         }
+    }
+}
+
+fn debug_plank_mats(plank: &Plank) {
+    println!("base texture offset: {}", plank.texture_offset);
+    println!("turns: {}", plank.turns);
+    for coord in plank.coords.iter() {
+        let mut turned = coord.clone();
+        for _ in 0..plank.turns {
+            turned = IVec2::new(turned.y, -turned.x);
+        }
+        let offset = turned + plank.texture_offset;
+    
+        println!("coord: {}. turned: {}. offset: {}", coord, turned, offset);
     }
 }
 
