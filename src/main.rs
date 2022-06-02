@@ -316,6 +316,8 @@ fn create_level(
     let hole_spec = WoodMaterialSpec {
         texture_offset: IVec2::new(rng.gen_range(0..1000), rng.gen_range(0..1000)),
         turns: 0,
+        primary_color: Color::rgba(0.162, 0.072, 0.036, 1.0),
+        secondary_color: Color::rgba(0.084, 0.03, 0.018, 1.0),
         hilight_color: Color::rgba(0.0, 0.0, 0.0, 1.0),
         size: size.as_uvec2(),
         is_plank: false,
@@ -340,6 +342,8 @@ fn create_level(
     let plank_spec = WoodMaterialSpec {
         texture_offset: level.planks[0].0.texture_offset,
         turns: level.planks[0].0.turns,
+        primary_color: Color::rgba(0.162, 0.072, 0.036, 1.0),
+        secondary_color: Color::rgba(0.084, 0.03, 0.018, 1.0),
         hilight_color: Color::rgba(0.2, 0.2, 1.0, 1.0),
         size: size.as_uvec2(),
         is_plank: true,
@@ -865,6 +869,8 @@ fn cut_plank(
                             let plank_spec = WoodMaterialSpec {
                                 texture_offset: plank.texture_offset,
                                 turns: base_plank.0.turns,
+                                primary_color: Color::rgba(0.162, 0.072, 0.036, 1.0),
+                                secondary_color: Color::rgba(0.084, 0.03, 0.018, 1.0),
                                 hilight_color: Color::rgba(0.2, 0.2, 1.0, 1.0),
                                 size: size.as_uvec2(),
                                 is_plank: true,

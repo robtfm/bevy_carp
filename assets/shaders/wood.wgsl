@@ -2,6 +2,8 @@
 #import bevy_pbr::mesh_struct
 
 struct WoodMaterial {
+    primary_color: vec4<f32>;
+    secondary_color: vec4<f32>;
     hilight_color: vec4<f32>;
     texture_offset: vec2<i32>;
     size: vec2<u32>;
@@ -64,7 +66,7 @@ fn is_hole(xy: vec2<i32>) -> bool {
     let size = vec2<i32>(material.size);
 
     if (xy.x >= size.x || xy.x < 0 || xy.y >= size.y || xy.y < 0) {
-        return true;
+        return is_plank;
     }
 
     var in_set: bool = textureLoad(base_color_texture, xy, 0).r != 0u;
@@ -106,12 +108,6 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     return out;
 }
 
-// without the floor here, 
-//  fract(x) != x - floor(x) 
-fn v2i32(in: vec2<f32>) -> vec2<i32> {
-    return vec2<i32>(floor(in));
-}
-
 [[stage(fragment)]]
 fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
 
@@ -127,12 +123,10 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
         up = vec2<i32>(-up.y, up.x);
     }
 
-    texture_uv = texture_uv + 0.5;
-    let pixel_uv = texture_uv + vec2<f32>(material.texture_offset);
+    texture_uv = texture_uv + 0.5 + vec2<f32>(material.texture_offset);
+    var color = wood_texture(vec3<f32>(texture_uv * 0.17, 0.25));
 
-    var color = wood_texture(vec3<f32>(pixel_uv * 0.17, 0.25));
-
-    let tile = v2i32(in.uv); // ?!? floor is needed to avoid tiling seams
+    let tile = vec2<i32>(in.uv);
     let material_tile = vec2<i32>(tile_uv) + material.texture_offset;
 
     var alpha = 0.0;
@@ -144,19 +138,21 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
         let is_hole_up = is_hole(tile - up);
         let is_hole_down = is_hole(tile + up);
 
-        let residual = (pixel_uv - vec2<f32>(material_tile)) - 0.5;
+        let residual = (texture_uv - vec2<f32>(material_tile)) - 0.5;
 
         var range = 0.2;
         var base = 0.45;
+        var size = 10.0;
 
         var hilight = 0.1;
         if (material.is_plank == 1u) {
             base = 0.5;
-            range = 0.05;
+            range = 0.1;
+            size = 1.5;
         }
 
         if (!is_hole_left) {
-            let jag = range * (1.0 - noise(pixel_uv.y, 10.0, f32(material_tile.x)));
+            let jag = range * (1.0 - noise(texture_uv.y, size, f32(material_tile.x)));
             let distance = residual.x + base - jag;
             if (distance < 0.0) {
                 alpha = 1.0;
@@ -166,7 +162,7 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
         } 
         
         if (!is_hole_right) {
-            let jag = range * noise(pixel_uv.y, 10.0, f32(material_tile.x+1));
+            let jag = range * noise(texture_uv.y, size, f32(material_tile.x+1));
             let distance = -residual.x + base - jag;
             if (distance < 0.0) {
                 alpha = 1.0;
@@ -176,7 +172,7 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
         }
 
         if (!is_hole_up) {
-            let jag = range * (1.0 - noise(pixel_uv.x, 10.0, f32(material_tile.y)));
+            let jag = range * (1.0 - noise(texture_uv.x, size, f32(material_tile.y)));
             let distance = residual.y + base - jag;
             if (distance < 0.0) {
                 alpha = 1.0;
@@ -186,7 +182,7 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
         } 
         
         if (!is_hole_down) {
-            let jag = range * noise(pixel_uv.x, 10.0, f32(material_tile.y+1));
+            let jag = range * noise(texture_uv.x, size, f32(material_tile.y+1));
             let distance = -residual.y + base - jag;
             if (distance < 0.0) {
                 alpha = 1.0;
@@ -198,17 +194,17 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
         // corners
         for (var x = -1; x <= 1; x = x + 2) {
             for (var y = -1; y <= 1; y = y + 2) {
-                if (!is_hole(tile + x * right + y * up)) {
+                if (!is_hole(tile + x * right + y * up) && (is_hole(tile + x * right) == is_hole(tile + y * up))) {
                     var jag: f32;
                     let offset = residual * vec2<f32>(f32(x), f32(y)) - 0.5;
-                    let x_ratio = (offset.x / (offset.x + offset.y));
+                    let x_ratio = (abs(offset.x) / (abs(offset.x) + abs(offset.y)));
 
-                    var x_noise = noise(pixel_uv.x, 10.0, (f32(material_tile.y) + f32(y) * 0.5 + 0.5));
-                    var y_noise = noise(pixel_uv.y, 10.0, (f32(material_tile.x) + f32(x) * 0.5 + 0.5));
+                    var x_noise = noise(texture_uv.x, size, (f32(material_tile.y) + f32(y) * 0.5 + 0.5));
+                    var y_noise = noise(texture_uv.y, size, (f32(material_tile.x) + f32(x) * 0.5 + 0.5));
                     if (y < 0) { x_noise = 1.0 - x_noise; }
                     if (x < 0) { y_noise = 1.0 - y_noise; }
 
-                    jag = range * (x_noise * (1.0 - x_ratio) + y_noise * x_ratio);
+                    jag = range * cos_interpolate(y_noise, x_noise, 1.0-x_ratio);
 
                     let distance = sqrt(dot(offset, offset)) - (0.5 - base) - jag;
                     if (distance < 0.0) {
