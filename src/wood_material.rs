@@ -19,7 +19,7 @@ impl Plugin for WoodMaterialPlugin {
 #[uuid = "8f83afc2-8543-40d9-b8ec-fbdb11051ebf"]
 pub struct WoodMaterialSpec {
     pub hilight_color: Color,
-    pub texture_offset: Vec2,
+    pub texture_offset: IVec2,
     pub size: UVec2,
     pub turns: usize,
     pub is_plank: bool,
@@ -29,7 +29,7 @@ pub struct WoodMaterialSpec {
 #[derive(ShaderType)]
 pub struct WoodMaterialUniformData {
     pub hilight_color: Vec4,
-    pub texture_offset: Vec2,
+    pub texture_offset: IVec2,
     size: UVec2,
     turns: u32,
     is_plank: u32,
@@ -49,6 +49,7 @@ impl SimpleTextureSpec for WoodMaterialSpec {
         TextureSampleType::Uint
     }
     fn fragment_shader(asset_server: &AssetServer) -> Option<Handle<Shader>> {
+        asset_server.watch_for_changes().unwrap();
         Some(asset_server.load("shaders/wood.wgsl"))
     }
 

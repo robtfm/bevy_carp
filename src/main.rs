@@ -314,7 +314,7 @@ fn create_level(
     let quad = BLQuad::new(size.as_vec2(), Vec2::ZERO);
 
     let hole_spec = WoodMaterialSpec {
-        texture_offset: Vec2::new(rng.gen_range(0.0..1000.0), rng.gen_range(0.0..1000.0)),
+        texture_offset: IVec2::new(rng.gen_range(0..1000), rng.gen_range(0..1000)),
         turns: 0,
         hilight_color: Color::rgba(0.0, 0.0, 0.0, 1.0),
         size: size.as_uvec2(),
@@ -336,9 +336,9 @@ fn create_level(
 
     let size = level.planks[0].0.size() + 2;
     let quad = BLQuad::new(size.as_vec2(), Vec2::ZERO);
-    level.planks[0].0.texture_offset = IVec2::new(rng.gen_range(0..100), rng.gen_range(0..100));
+    level.planks[0].0.texture_offset = IVec2::new(rng.gen_range(0..1000), rng.gen_range(0..1000));
     let plank_spec = WoodMaterialSpec {
-        texture_offset: level.planks[0].0.texture_offset.as_vec2(),
+        texture_offset: level.planks[0].0.texture_offset,
         turns: level.planks[0].0.turns,
         hilight_color: Color::rgba(0.2, 0.2, 1.0, 1.0),
         size: size.as_uvec2(),
@@ -863,7 +863,7 @@ fn cut_plank(
                             let pos = pos.0 - shift;
                             let quad = BLQuad::new(size.as_vec2(), Vec2::ZERO);
                             let plank_spec = WoodMaterialSpec {
-                                texture_offset: plank.texture_offset.as_vec2(),
+                                texture_offset: plank.texture_offset,
                                 turns: base_plank.0.turns,
                                 hilight_color: Color::rgba(0.2, 0.2, 1.0, 1.0),
                                 size: size.as_uvec2(),
