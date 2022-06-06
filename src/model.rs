@@ -16,6 +16,22 @@ pub struct Level {
     pub setup: bool,
 }
 
+impl Level {
+    pub fn difficulty(&self) -> f32 {
+        // let hole_count = self.holes.holes.len() as f32;
+        let plank = &self.planks[0].0;
+        let area = plank.size().x * plank.size().y;
+        let density = plank.coords.len() as f32 / area as f32;
+        let hole_difficulty = self.holes.holes.iter().fold(1.0, |sum, hole| {
+            let hole_difficulty = f32::sqrt(1.0 / f32::max(4.0, hole.coords.len() as f32));
+            sum + hole_difficulty
+        });
+
+        println!("hole score {} * (1 + density {})", hole_difficulty, density);
+        return hole_difficulty * (1.0 + density);
+    }
+}
+
 // holds the built level in initial state. probably not necessary with reproduceable seeded builds, could just use LevelDef
 #[derive(Default)]
 pub struct LevelBase(pub Level);
@@ -65,7 +81,7 @@ impl CoordSet {
         )
     }
 
-    pub fn _overlaps(&self, other: &CoordSet) -> bool {
+    pub fn overlaps(&self, other: &CoordSet) -> bool {
         self.coords.iter().any(|c1| 
             other.contains(*c1)
         )
@@ -173,21 +189,24 @@ impl Plank {
             self.rotate();
         }
 
-        // let original_extents = hole.extents();
         let y_shift_range = (self.extents().1.0 - hole.extents().1.1)..=(self.extents().1.1 - hole.extents().1.0);
         let y_shift = rng.gen_range(y_shift_range.clone());
 
         hole.shift(IVec2::new(self.extents().0.0 - hole.extents().0.1 - 1, y_shift));
 
-        while !self.touches(&hole) {
+        let mut possible = Vec::new();
+        loop {
+            if self.touches(&hole) {
+                possible.push(hole.clone());
+            }
             hole.shift(IVec2::X);
-
-            // if hole.extents().0.0 > self.extents().0.1 {
-            //     println!("failed: \n{}, \n{}, {:?}, {:?}, {}, {:?}, {:?}", self, hole, self.extents(), hole.extents(), y_shift, y_shift_range, original_extents);
-            // } else {
-            //     println!("{} vs {}", hole.extents().0.0, self.extents().0.1);
-            // }
+            if self.overlaps(&hole) {
+                break;
+            }
         }
+
+        // possible.shuffle(rng);
+        let mut hole = possible.pop().unwrap();
 
         self.coords.extend(hole.coords.drain());
         self
@@ -223,16 +242,16 @@ pub fn gen_holes(mut count: usize, total: usize, mut rng: &mut StdRng) -> Holes 
     let smallest = (avg * 0.5).ceil() as usize;
     let largest = (avg * 1.5).floor() as usize;
 
-    println!("count: {}, total: {}, smallest: {}, largest: {}", count, total, smallest, largest);
+    debug!("count: {}, total: {}, smallest: {}, largest: {}", count, total, smallest, largest);
 
     let mut holes = Vec::new();
     while count > 0 {
         count -= 1;
         let small = smallest.max(remainder - (count * largest).min(remainder));
         let large = largest.min(remainder - (count * smallest).min(remainder));
-        println!("remaining: {}, piece: [{},{}]", remainder, small, large);
+        debug!("remaining: {}, piece: [{},{}]", remainder, small, large);
         let size = rng.gen_range(small..=large);
-        println!(" -> {}", size);
+        debug!(" -> {}", size);
         holes.push(gen_hole(size, &mut rng).normalize());
         remainder -= size;
     }

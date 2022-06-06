@@ -2,9 +2,9 @@
 // clean up input, make configurable. check leafwing
 // show controls in context
 // sfx
+// image generation and shader should take offset and orientation
 
 //tbd
-// image generation and shader should take offset and orientation
 // store state when things change, impl undo (make sure locals are empty & emptied)
 // splash
 // music
@@ -101,9 +101,6 @@ fn main() {
         // camera management
         .add_system_to_stage(CoreStage::PostUpdate, camera_focus)
 
-        // debug
-        .add_system(debug_actions)
-
         .run()
     ;
 
@@ -177,36 +174,40 @@ fn handle_window_resize(
 #[derive(Default, Clone)]
 pub struct LevelSet([Option<LevelDef>;30], usize);
 
-const EASY: LevelSet = LevelSet(
-    [
-        Some(LevelDef{ num_holes: 1, total_blocks: 3, seed: 0 }),
-        Some(LevelDef{ num_holes: 1, total_blocks: 6, seed: 10 }),
-        Some(LevelDef{ num_holes: 2, total_blocks: 10, seed: 20 }),
-        Some(LevelDef{ num_holes: 2, total_blocks: 8, seed: 30 }),
-        Some(LevelDef{ num_holes: 2, total_blocks: 10, seed: 40 }),
-        Some(LevelDef{ num_holes: 3, total_blocks: 15, seed: 61 }),
-        Some(LevelDef{ num_holes: 3, total_blocks: 20, seed: 83 }),
-        Some(LevelDef{ num_holes: 3, total_blocks: 20, seed: 94 }),
-        Some(LevelDef{ num_holes: 3, total_blocks: 20, seed: 106 }),
-        Some(LevelDef{ num_holes: 3, total_blocks: 25, seed: 117 }),
-        Some(LevelDef{ num_holes: 3, total_blocks: 25, seed: 128 }),
-        Some(LevelDef{ num_holes: 3, total_blocks: 25, seed: 139 }),
-        Some(LevelDef{ num_holes: 3, total_blocks: 25, seed: 1411 }),
-        Some(LevelDef{ num_holes: 3, total_blocks: 15, seed: 50 }), // hard
-        None, None, None, None, None, None, 
-        None, None, None, None, None, None, None, None, None, None, 
-    ],
-    0
-);
-
 fn spawn_random(
     spawn_evs: &mut EventWriter<SpawnLevelEvent>,
+    levelset: &mut LevelSet,
+    total: usize,
+    skip: usize,
 ) {
     let mut rng = thread_rng();
-    let seed = rng.gen();
-    let num_holes = rng.gen_range(2..10);
-    let total_blocks = rng.gen_range(0..10) + num_holes * rng.gen_range(3..8);
-    spawn_evs.send(SpawnLevelEvent { def: LevelDef{ num_holes, total_blocks, seed } });
+
+    let mut defs = (0..total).map(|_| {
+        let seed = rng.gen();
+        let num_holes = rng.gen_range(2..15);
+        let total_blocks = rng.gen_range(0..7) + num_holes * rng.gen_range(3..9);
+        Some(LevelDef{ num_holes, total_blocks, seed })
+    }).collect::<Vec<_>>();
+
+    defs.sort_by_key(|def| {
+        let def = def.as_ref().unwrap();
+        let mut rng = StdRng::seed_from_u64(def.seed);
+        let holes = gen_holes(def.num_holes, def.total_blocks, &mut rng);
+        let plank = Plank::from_holes(&holes, &mut rng);
+        let level = Level { holes, planks: vec![(plank, Position::default())], ..Default::default() };
+        (level.difficulty() * 100000.0) as i32
+    });
+
+    defs = defs.into_iter().skip(skip).take(30).collect();
+
+    let defs: [Option<LevelDef>;30] = match defs.try_into(){
+        Ok(defs) => defs,
+        Err(_) => panic!(),
+    };
+
+    *levelset = LevelSet(defs, 0);
+    
+    spawn_evs.send(SpawnLevelEvent { def: levelset.0[0].as_ref().unwrap().clone() });
 }
 
 fn setup_level(
@@ -227,7 +228,7 @@ fn setup_level(
         let grid_y = (count as f32 / 2.0).sqrt().floor() as usize;
         let grid_x = (count as f32 / grid_y as f32).ceil() as usize;
     
-        println!("count: {}, grid: {},{}", count, grid_x, grid_y);
+        debug!("setup_level: count: {}, grid: {},{}", count, grid_x, grid_y);
     
         let mut extents = IVec2::ZERO;
         let mut grid_col = 0;
@@ -251,8 +252,8 @@ fn setup_level(
         }
     
         let uber_hole = Hole::merge(holes.holes.iter());
-        println!("uber hole: [{:?}] \n{}", uber_hole.extents(), uber_hole);
-        println!("plank: [{:?}]\n{}", plank.extents(), plank);
+        debug!("uber hole: [{:?}] \n{}", uber_hole.extents(), uber_hole);
+        debug!("plank: [{:?}]\n{}", plank.extents(), plank);
     
         *base = LevelBase(Level { extents, holes, planks: vec![(plank, Position::default())], setup: true });
         *def = ev.def.clone();
@@ -267,7 +268,7 @@ fn create_coordset_image<'a>(
     let merger = Hole::merge(coords);
 
     let size = merger.size() + IVec2::ONE * 2;
-    println!("dims: {}", size);
+    debug!("dims: {}", size);
     let mut data = Vec::from_iter(std::iter::repeat(0u8).take((size.x * size.y) as usize));
 
     for coord in merger.coords.iter() {
@@ -281,8 +282,7 @@ fn create_coordset_image<'a>(
         bevy::render::render_resource::TextureFormat::R8Uint,
     );
     
-    println!("dims: {}", size);
-    println!("{}", merger);
+    debug!("{}", merger);
 
     images.add(image)
 }
@@ -316,8 +316,8 @@ fn create_level(
     let hole_spec = WoodMaterialSpec {
         texture_offset: IVec2::new(rng.gen_range(0..1000), rng.gen_range(0..1000)),
         turns: 0,
-        primary_color: Color::rgba(0.162, 0.072, 0.036, 1.0),
-        secondary_color: Color::rgba(0.084, 0.03, 0.018, 1.0),
+        primary_color: Color::rgba(0.462, 0.272, 0.136, 1.0),
+        secondary_color: Color::rgba(0.284, 0.13, 0.118, 1.0),
         hilight_color: Color::rgba(0.0, 0.0, 0.0, 1.0),
         size: size.as_uvec2(),
         is_plank: false,
@@ -342,15 +342,15 @@ fn create_level(
     let plank_spec = WoodMaterialSpec {
         texture_offset: level.planks[0].0.texture_offset,
         turns: level.planks[0].0.turns,
-        primary_color: Color::rgba(0.162, 0.072, 0.036, 1.0),
-        secondary_color: Color::rgba(0.084, 0.03, 0.018, 1.0),
+        primary_color: Color::rgba(0.462, 0.272, 0.136, 1.0) * 1.5,
+        secondary_color: Color::rgba(0.284, 0.13, 0.118, 1.0) * 1.2,
         hilight_color: Color::rgba(0.2, 0.2, 1.0, 1.0),
         size: size.as_uvec2(),
         is_plank: true,
         base_color_texture: create_coordset_image(&mut images, std::iter::once(&level.planks[0].0)),
     };
 
-    println!("plank offset: {}", level.planks[0].0.texture_offset);
+    debug!("plank offset: {}", level.planks[0].0.texture_offset);
 
     let pos = IVec2::new(-size.x / 2, -size.y - 1);
     let mat_handle = mats.add(SimpleTextureMaterial( plank_spec ));
@@ -549,7 +549,6 @@ fn camera_focus(
                 let target_z = (f32::max((max_x - min_x) as f32 / x_scale, (max_y - min_y) as f32 * y_scale) / (2.0 * z_scale)).ceil() as i32;
 
                 if target_z > z.0 {
-                    // println!("adjusting z: aspect: {}, count: {}, x: [{},{}], y: [{},{}], z {}->{}", cam.aspect_ratio, count, min_x, max_y, min_y, max_y, z.0, target_z);
                     z.0 = target_z;
                 }
 
@@ -557,19 +556,15 @@ fn camera_focus(
                 let y_range = (z.0 as f32 * y_scale * z_scale) as i32;
                 
                 if min_x < pos.0.x - x_range {
-                    // println!("adjusting x for min: aspect: {}, count: {}, range: [{}, {}], x: [{},{}], y: [{},{}], x {}->{}", cam.aspect_ratio, count, x_range, y_range, min_x, max_y, min_y, max_y, pos.0.x, min_x + x_range);
                     pos.0.x = min_x + x_range;
                 }
                 if max_x > pos.0.x + x_range {
-                    // println!("adjusting x for max: aspect: {}, count: {}, range: [{}, {}], x: [{},{}], y: [{},{}], x {}->{}", cam.aspect_ratio, count, x_range, y_range, min_x, max_y, min_y, max_y, pos.0.x, max_x - x_range);
                     pos.0.x = max_x - x_range;
                 }
                 if min_y < pos.0.y - y_range {
-                    // println!("adjusting y for min: aspect: {}, count: {}, range: [{}, {}], x: [{},{}], y: [{},{}], x {}->{}", cam.aspect_ratio, count, x_range, y_range, min_x, max_y, min_y, max_y, pos.0.y, min_y + y_range);
                     pos.0.y = min_y + y_range;
                 }
                 if max_y > pos.0.y + y_range {
-                    // println!("adjusting x for min: aspect: {}, count: {}, range: [{}, {}], x: [{},{}], y: [{},{}], x {}->{}", cam.aspect_ratio, count, x_range, y_range, min_x, max_y, min_y, max_y, pos.0.y, max_y - y_range);
                     pos.0.y = max_y - y_range;
                 }
             }
@@ -604,7 +599,7 @@ fn grab_or_drop(
     for ev in ev.iter() {
         if ev.label == "grab" {
             if let Ok((grab, mut trans)) = to_grab.get_single_mut() {
-                println!("grab");
+                debug!("grab");
                 commands
                     .entity(grab)
                     .remove::<Targeted>()
@@ -627,7 +622,7 @@ fn grab_or_drop(
             }
 
             if let Ok((droppee, mut trans)) = to_drop.get_single_mut() {
-                println!("drop");
+                debug!("drop");
                 commands.entity(droppee).remove::<Selected>().remove::<Controller>();
                 trans.translation.z = 0.3;
                 audio.set_playback_rate(1.1);
@@ -656,18 +651,18 @@ fn rotate_plank(
         };
 
         if let Ok((ent, mut transform, mut plank, mut plank_pos, children)) = grabbed.get_mut(ev.sender) {
-            println!("rot {}", dir);
+            debug!("rot {}", dir);
            
             for _ in 0..dir {
                 plank.0.rotate();
 
-                println!("extents: {:?}", plank.0.extents());
+                debug!("extents: {:?}", plank.0.extents());
 
                 let offset = cur_pos.0 - plank_pos.0;
                 let rotated = IVec2::new(-offset.y, offset.x);
-                println!("cur: {}, plank: {}, offset: {}", cur_pos.0, plank_pos.0, offset);
+                debug!("cur: {}, plank: {}, offset: {}", cur_pos.0, plank_pos.0, offset);
                 plank_pos.0 = plank_pos.0 + offset - rotated;
-                println!("rotated: {}, new pos: {}", rotated, plank_pos.0);
+                debug!("rotated: {}, new pos: {}", rotated, plank_pos.0);
 
                 if let Some(child) = children.get(0) {
                     if let Ok(mut trans) = material_nodes.get_mut(*child) {
@@ -762,7 +757,7 @@ fn cut_plank(
         if ev.label == "cancel" {
             if let Ok((cutter, _cut)) = cut.get(ev.sender) {
                 // currently cutting - cancel
-                println!("cancel cut");
+                debug!("cancel cut");
                 for (mut controller, children, is_cursor) in cursor.iter_mut() {
                     controller.enabled = true;
                     if is_cursor.is_some() {
@@ -784,7 +779,7 @@ fn cut_plank(
         if ev.label == "cut" {
             if let Ok((_ent, plank_pos, plank)) = targeted.get_single() {
                 if let Ok(pos) = cursor_pos.get(ev.sender) {
-                    println!("begin cut");
+                    debug!("begin cut");
                     // not cutting - begin
 
                     // spawn cutter
@@ -849,7 +844,7 @@ fn cut_plank(
             if let Ok((cutter, cut)) = cut.get(ev.sender) {
                 if let Ok((selected_ent, pos, base_plank)) = targeted.get_single() {
                     if cut.finished {
-                        println!("base");
+                        debug!("base");
                         debug_plank_mats(&base_plank.0);
 
                         // let mut rng = thread_rng();
@@ -861,7 +856,7 @@ fn cut_plank(
                             let shift = IVec2::new(-plank.extents().0.0 + 1, -plank.extents().1.0 + 1);
                             plank.shift(shift);
 
-                            println!("shift: {}, base offset: {}, new offset: {}", shift, base_plank.0.texture_offset, plank.texture_offset);
+                            debug!("shift: {}, base offset: {}, new offset: {}", shift, base_plank.0.texture_offset, plank.texture_offset);
                             debug_plank_mats(&plank);
 
                             let pos = pos.0 - shift;
@@ -869,8 +864,8 @@ fn cut_plank(
                             let plank_spec = WoodMaterialSpec {
                                 texture_offset: plank.texture_offset,
                                 turns: base_plank.0.turns,
-                                primary_color: Color::rgba(0.162, 0.072, 0.036, 1.0),
-                                secondary_color: Color::rgba(0.084, 0.03, 0.018, 1.0),
+                                primary_color: Color::rgba(0.462, 0.272, 0.136, 1.0) * 1.5,
+                                secondary_color: Color::rgba(0.284, 0.13, 0.118, 1.0) * 1.2,
                                 hilight_color: Color::rgba(0.2, 0.2, 1.0, 1.0),
                                 size: size.as_uvec2(),
                                 is_plank: true,
@@ -916,8 +911,8 @@ fn cut_plank(
 }
 
 fn debug_plank_mats(plank: &Plank) {
-    println!("base texture offset: {}", plank.texture_offset);
-    println!("turns: {}", plank.turns);
+    debug!("base texture offset: {}", plank.texture_offset);
+    debug!("turns: {}", plank.turns);
     for coord in plank.coords.iter() {
         let mut turned = coord.clone();
         for _ in 0..plank.turns {
@@ -925,7 +920,7 @@ fn debug_plank_mats(plank: &Plank) {
         }
         let offset = turned + plank.texture_offset;
     
-        println!("coord: {}. turned: {}. offset: {}", coord, turned, offset);
+        debug!("coord: {}. turned: {}. offset: {}", coord, turned, offset);
     }
 }
 
@@ -961,7 +956,7 @@ fn extend_cut(
                 (0, -1) => (prev.0 - IVec2::ONE, prev.0 - IVec2::Y),
                 (0, 1) => (prev.0 - IVec2::X, prev.0),
                 _ => {
-                    println!("weird move, abort");
+                    debug!("weird move, abort");
                     position.0 = prev.0;
                     continue;
                 }
@@ -970,13 +965,13 @@ fn extend_cut(
             let affected = (affected.0 - plank_pos.0, affected.1 - plank_pos.0);
 
             if !plank.0.contains(affected.0) && !plank.0.contains(affected.1) {
-                println!("air block");
+                debug!("air block");
                 position.0 = prev.0;
                 continue;
             }
 
             if cut.separated.contains(&affected) {
-                println!("unchop");
+                debug!("unchop");
                 cut.separated.remove(&affected);
                 cut.visited.remove(&prev.0);
                 cuts.send(CutEvent::UnCut{from: prev.0, to: position.0});
@@ -989,26 +984,20 @@ fn extend_cut(
             }
 
             if cut.finished {
-                println!("finished block");
+                debug!("finished block");
                 position.0 = prev.0;
                 continue;
             }
 
-            // if plank.0.contains(affected.0) && plank.0.contains(affected.1) && cut.visited.contains(&position.0) {
-            //     println!("revisit block");
-            //     position.0 = prev.0;
-            //     continue;
-            // }
-
             if plank.0.contains(affected.0) && plank.0.contains(affected.1) {
-                println!("chop");
+                debug!("chop");
                 cut.visited.insert(prev.0);
                 cut.visited.insert(position.0);                
                 cut.separated.insert(affected);
                 cuts.send(CutEvent::NewCut{from: prev.0, to: position.0});
 
                 if cut.is_finished(&plank.0) {
-                    println!("finished!");
+                    debug!("finished!");
                     cut.finished = true;
                     cuts.send(CutEvent::FinishCut);
                 }
@@ -1146,7 +1135,7 @@ fn hammer_home(
         shifted.shift(pos.0 - hole_pos.0);
         for (i, hole) in level.holes.holes.iter().enumerate() {
             if shifted.equals(&hole) {
-                println!("hammer!");
+                debug!("hammer!");
                 commands.entity(plank_ent).remove::<PlankComponent>().remove::<Targeted>().remove::<Selected>().remove::<Controller>();
                 level.holes.holes.remove(i);
 
@@ -1169,7 +1158,7 @@ fn hammer_home(
                 }
 
                 if level.holes.holes.is_empty() {
-                    println!("you win!");
+                    debug!("you win!");
                     let mut items = vec![
                         ("Restart Level".into(), "restart"),
                         ("Main Menu".into(), "main menu"),
@@ -1177,8 +1166,9 @@ fn hammer_home(
                     ];
 
                     let next = levelset.1 + 1;
-                    if levelset.0[next].is_some() {
-                        items.insert(0, ("Next Level".into(), "next level"));
+
+                    if next < 30 && levelset.0[next].is_some() {
+                        items.insert(0, (format!("Next Level ({}/{})", next+1, 30), "next level"));
                     }
 
                     if levelset.0[0].is_none() {
@@ -1188,7 +1178,7 @@ fn hammer_home(
                     menu.send(PopupMenuEvent{
                         sender: Entity::from_raw(0),
                         menu: PopupMenu { 
-                            heading: "Nice one!".into(),
+                            heading: format!("Nice one!\n {}/{} completed!", next, 30),
                             items, 
                             cancel_action: None, 
                         },
@@ -1225,7 +1215,7 @@ fn system_events(
                 if let Some(def) = levelset.0[levelset.1].as_ref() {
                     spawn_event.send(SpawnLevelEvent { def: def.clone() });
                 } else {
-                    spawn_random(&mut spawn_event);
+                    spawn_random(&mut spawn_event, &mut levelset, 30, 0);
                 }
 
                 reset_events.send_default();
@@ -1247,10 +1237,3 @@ fn system_events(
     }
 }
 
-fn debug_actions(
-    mut evs: EventReader<ActionEvent>,
-) {
-    for _ev in evs.iter() {
-        // println!("EV: {} from {:?}", ev.label, ev.sender);
-    }
-}

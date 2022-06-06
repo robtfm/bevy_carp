@@ -36,27 +36,28 @@ fn cos_interpolate(v1: f32, v2: f32, a: f32) -> f32 {
 }
 
 fn noise(pos: f32, size: f32, seed: f32) -> f32 {	
+    let pos = max(pos, 0.0);
 	let grid = floor(pos * size) * 0.1;
     let pos_grid = ((pos) % (1.0/size)) * size;
 	let next_grid =  floor((pos + (1.0/size)) * size) * 0.1;
-	let sample1 = ((rand(grid, seed * 1.0 + 5.05)));
-	let sample2 = ((rand(next_grid, seed * 1.0 + 5.05)));
+	let sample1 = ((rand(grid, seed)));
+	let sample2 = ((rand(next_grid, seed)));
 	
     return cos_interpolate(sample1, sample2, pos_grid);
 }
 	
 
-fn wood_texture(uv: vec3<f32>) -> vec3<f32>
+fn wood_texture(uv: vec2<f32>) -> vec3<f32>
 {
 	var u = noise(uv.x, 10.0, 272.0);
-	u = u * noise(uv.y, 10.0, 272.0) ;
-	u = u + noise(uv.y, 10.0, 272.0) ;
+	u = u * noise(uv.y, 10.0, 273.0) ;
+	u = u + noise(uv.y, 10.0, 274.0) ;
 	
-	let v = noise(uv.y + (u * 0.1), 110.0, 272.0);
+	let v = noise(uv.y + (u * 0.1), 110.0, 275.0);
 		
 	let val = u * v;
-	let color_a = vec3<f32>(0.09, 0.04, 0.02) * 1.8;
-	let color_b = vec3<f32>(0.14, 0.05, 0.03) * 0.6;
+	let color_a = material.primary_color.rgb;
+	let color_b = material.secondary_color.rgb;
 
 	return mix(color_a, color_b, val);
 }
@@ -124,7 +125,7 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
     }
 
     texture_uv = texture_uv + 0.5 + vec2<f32>(material.texture_offset);
-    var color = wood_texture(vec3<f32>(texture_uv * 0.17, 0.25));
+    var color = wood_texture(texture_uv * 0.08);
 
     let tile = vec2<i32>(in.uv);
     let material_tile = vec2<i32>(tile_uv) + material.texture_offset;

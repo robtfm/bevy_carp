@@ -37,13 +37,13 @@ fn pad_connection(mut pad: ResMut<GamePadRes>, mut gamepad_event: EventReader<Ga
         match &event {
             GamepadEvent{ gamepad, event_type: GamepadEventType::Connected } => {
                 pad.0 = Some(*gamepad);
-                println!("C");
+                debug!("C");
             }
             GamepadEvent{ gamepad, event_type: GamepadEventType::Disconnected } => {
                 if let Some(cur_pad) = pad.0 {
                     if &cur_pad == gamepad {
                         pad.0 = None;
-                        println!("DC");
+                        debug!("DC");
                     }
                 }
             }

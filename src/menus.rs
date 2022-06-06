@@ -3,7 +3,7 @@ use bevy_egui::{egui, EguiContext};
 use bevy_kira_audio::AudioChannel;
 use egui_extras::StripBuilder;
 
-use crate::{structs::{ActionEvent, Position, PopupMenuEvent, PopupMenu, MenuItem}, LevelSet, SpawnLevelEvent, EASY, spawn_random, LevelDef, input::Controller, MenuChannel, Permanent};
+use crate::{structs::{ActionEvent, Position, PopupMenuEvent, PopupMenu, MenuItem}, LevelSet, SpawnLevelEvent, spawn_random, LevelDef, input::Controller, MenuChannel, Permanent, model::LevelBase};
 
 #[derive(Component)]
 struct MenuSelect;
@@ -48,19 +48,27 @@ pub fn spawn_play_menu(
                             ("Easy".into(), "play easy"),
                             ("Medium".into(), "play medium"),
                             ("Hard".into(), "play hard"),
-                            ("Random".into(), "play random"),
+                            ("Mixed".into(), "play mix"),
                         ],
                         cancel_action: Some("main menu"), 
                     }
                 });
             }
             "play easy" => {
-                *levelset = EASY.clone();
-                spawn_level.send(SpawnLevelEvent { def: EASY.0[0].as_ref().unwrap().clone() });
-            }
-            "play random" => {
                 *levelset = LevelSet::default();
-                spawn_random(&mut spawn_level);
+                spawn_random(&mut spawn_level, &mut levelset, 90, 0);
+            }
+            "play medium" => {
+                *levelset = LevelSet::default();
+                spawn_random(&mut spawn_level, &mut levelset, 90, 30);
+            }
+            "play hard" => {
+                *levelset = LevelSet::default();
+                spawn_random(&mut spawn_level, &mut levelset, 90, 60);
+            }
+            "play mix" => {
+                *levelset = LevelSet::default();
+                spawn_random(&mut spawn_level, &mut levelset, 30, 0);
             }
             _ => ()
         }
@@ -71,14 +79,18 @@ pub fn spawn_play_menu(
 pub fn spawn_in_level_menu(
     mut evs: EventReader<ActionEvent>,
     level: Res<LevelDef>,
+    set: Res<LevelSet>,
+    base: Res<LevelBase>,
     mut spawn: EventWriter<PopupMenuEvent>,
 ) {
     for ev in evs.iter() {
         if ev.label == "pause" {
+            println!("Paused\n[{}/{}/{}]", level.num_holes, level.total_blocks, level.seed);
+            println!("difficulty: {}", base.0.difficulty());
             spawn.send(PopupMenuEvent { 
                 sender: ev.sender, 
                 menu: PopupMenu {
-                    heading: format!("Paused\n[{}/{}/{}]", level.num_holes, level.total_blocks, level.seed),
+                    heading: format!("Paused ({}/{})\n", set.1 + 1, set.0.iter().filter(|l| l.is_some()).count()),
                     items: vec![
                         ("Resume".into(), "cancel"),
                         ("Restart Level".into(), "restart"),
@@ -133,7 +145,7 @@ pub fn spawn_popup_menu(
             .insert(MenuItem)
             .insert(Permanent);
 
-        println!("menu");
+        debug!("menu");
 
         *active_menu = Some((ev.menu.clone(), ev.sender));
         *menu_position = 0;
