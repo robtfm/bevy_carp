@@ -1,18 +1,16 @@
 use bevy::prelude::*;
 
-pub struct ActionEvent{
+pub struct ActionEvent {
     pub sender: Entity,
     pub label: &'static str,
     pub target: Option<Entity>,
 }
 
-
-#[derive(Component, Clone, Default)]
+#[derive(Component, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Position(pub IVec2);
 
-#[derive(Component, Clone, Default)]
+#[derive(Component, Clone, Copy, Default)]
 pub struct PositionZ(pub i32);
-
 
 #[derive(Clone, Default)]
 pub struct LevelDef {
@@ -31,7 +29,7 @@ pub struct MenuChannel;
 pub struct GrabDropChannel;
 pub struct HammerChannel;
 
-//menus 
+//menus
 
 #[derive(Clone)]
 pub struct PopupMenu {
@@ -47,4 +45,3 @@ pub struct PopupMenuEvent {
 
 #[derive(Component)]
 pub struct MenuItem;
-

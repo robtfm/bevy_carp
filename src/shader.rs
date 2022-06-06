@@ -1,11 +1,11 @@
 use bevy::{
-    ecs::system::{lifetimeless::{SRes}, SystemParam},
+    ecs::system::{lifetimeless::SRes, SystemParam},
     pbr::MaterialPipeline,
     prelude::*,
     reflect::TypeUuid,
     render::{
         render_asset::{PrepareAssetError, RenderAsset, RenderAssets},
-        render_resource::{*, encase::private::WriteInto},
+        render_resource::{encase::private::WriteInto, *},
         renderer::RenderDevice,
     },
 };
@@ -19,7 +19,7 @@ pub struct GpuBufferedMaterial {
 pub trait SimpleTextureSpec: Sync + Send + Clone + TypeUuid + 'static {
     type Param: SystemParam;
     type Uniform: ShaderType + WriteInto;
-    
+
     fn sample_type() -> TextureSampleType {
         TextureSampleType::Float { filterable: true }
     }
@@ -84,7 +84,7 @@ impl<S: SimpleTextureSpec<Param = P>, P: SystemParam> RenderAsset for SimpleText
             return Err(PrepareAssetError::RetryNextUpdate(material));
         };
 
-        let byte_buffer = vec!(0u8; S::Uniform::min_size().get() as usize);
+        let byte_buffer = vec![0u8; S::Uniform::min_size().get() as usize];
         let mut buffer = encase::UniformBuffer::new(byte_buffer);
         buffer.write(&uniform_data).unwrap();
 
@@ -229,7 +229,7 @@ impl<S: SimpleUniformSpec<Param = P>, P: SystemParam> RenderAsset for SimpleUnif
                 return Err(PrepareAssetError::RetryNextUpdate(material.clone()));
         };
 
-        let byte_buffer = vec!(0u8; S::Uniform::min_size().get() as usize);
+        let byte_buffer = vec![0u8; S::Uniform::min_size().get() as usize];
         let mut buffer = encase::UniformBuffer::new(byte_buffer);
         buffer.write(&uniform_data).unwrap();
 

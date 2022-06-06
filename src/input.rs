@@ -1,7 +1,11 @@
+use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
-use serde::{Serialize, Deserialize};
 
-use bevy::{prelude::*, ecs::system::SystemParam, utils::{HashMap, HashSet}};
+use bevy::{
+    ecs::system::SystemParam,
+    prelude::*,
+    utils::{HashMap, HashSet},
+};
 
 use bevy_egui::{egui, EguiContext};
 use egui_extras::StripBuilder;
@@ -12,20 +16,15 @@ pub struct InputPlugin;
 
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .init_resource::<GamePadRes>()
+        app.init_resource::<GamePadRes>()
             .init_resource::<ActionInputs>()
             .init_resource::<LastControlType>()
             .add_event::<ActionEvent>()
-
             // ui
             .add_system(show_controls)
-
             // input
             .add_system(pad_connection)
-            .add_system_to_stage(CoreStage::PreUpdate, controller)
-
-            ;
+            .add_system_to_stage(CoreStage::PreUpdate, controller);
     }
 }
 
@@ -35,11 +34,17 @@ pub struct GamePadRes(pub Option<Gamepad>);
 fn pad_connection(mut pad: ResMut<GamePadRes>, mut gamepad_event: EventReader<GamepadEvent>) {
     for event in gamepad_event.iter() {
         match &event {
-            GamepadEvent{ gamepad, event_type: GamepadEventType::Connected } => {
+            GamepadEvent {
+                gamepad,
+                event_type: GamepadEventType::Connected,
+            } => {
                 pad.0 = Some(*gamepad);
                 debug!("C");
             }
-            GamepadEvent{ gamepad, event_type: GamepadEventType::Disconnected } => {
+            GamepadEvent {
+                gamepad,
+                event_type: GamepadEventType::Disconnected,
+            } => {
                 if let Some(cur_pad) = pad.0 {
                     if &cur_pad == gamepad {
                         pad.0 = None;
@@ -74,18 +79,26 @@ pub struct InputParams<'w, 's> {
     buttons: Res<'w, Axis<GamepadButton>>,
 
     #[system_param(ignore)]
-    _marker: PhantomData<(&'w(), &'s())>
+    _marker: PhantomData<(&'w (), &'s ())>,
 }
 
 fn controller(
     inputs: InputParams,
-    mut controllers: Query<(Entity, Option<&Transform>, Option<&mut Position>, Option<&mut PositionZ>, &mut Controller)>,
+    mut controllers: Query<(
+        Entity,
+        Option<&Transform>,
+        Option<&mut Position>,
+        Option<&mut PositionZ>,
+        &mut Controller,
+    )>,
     mut action: EventWriter<ActionEvent>,
     mut mapping: ResMut<ActionInputs>,
     mut last_used: ResMut<LastControlType>,
 ) {
     // Handle key input
-    for (ent, maybe_transform, maybe_position, maybe_position_z, mut options) in controllers.iter_mut() {
+    for (ent, maybe_transform, maybe_position, maybe_position_z, mut options) in
+        controllers.iter_mut()
+    {
         if !options.enabled {
             options.initialized = false;
             continue;
@@ -111,9 +124,9 @@ fn controller(
         if let Some(mut position) = maybe_position {
             let translation = match maybe_transform {
                 Some(transform) => transform.translation.truncate(),
-                None => position.0.as_vec2()
+                None => position.0.as_vec2(),
             };
-    
+
             if mapping.active(options.left, &inputs) {
                 position.0.x = (translation.x - 1.0).ceil() as i32;
             }
@@ -130,7 +143,11 @@ fn controller(
 
         for &(label, trigger, _) in options.action.iter() {
             if mapping.active(trigger, &inputs) && options.initialized {
-                action.send(ActionEvent{ sender: ent, label, target: None });
+                action.send(ActionEvent {
+                    sender: ent,
+                    label,
+                    target: None,
+                });
             }
         }
 
@@ -145,7 +162,6 @@ pub enum LastControlType {
     Keyboard,
     Gamepad,
 }
-
 
 #[derive(Clone, Serialize, Deserialize)]
 pub enum InputItem {
@@ -171,7 +187,12 @@ fn key_text(k: &KeyCode) -> String {
 impl InputItem {
     pub fn print(&self, ui: &mut egui::Ui) {
         fn draw_key(text: String, ui: &mut egui::Ui) {
-            let galley = egui::WidgetText::RichText(text.into()).into_galley(ui, Some(false), 0.0, egui::FontSelection::Default);
+            let galley = egui::WidgetText::RichText(text.into()).into_galley(
+                ui,
+                Some(false),
+                0.0,
+                egui::FontSelection::Default,
+            );
             let req_size = (galley.size() + egui::vec2(20.0, 10.0)).max(egui::vec2(35.0, 10.0));
 
             let (response, painter) = ui.allocate_painter(req_size, egui::Sense::hover());
@@ -181,10 +202,28 @@ impl InputItem {
             let h = rect.height();
             let color = egui::Color32::from_gray(255);
             let stroke = egui::Stroke::new(1.0, color);
-            painter.line_segment([tl + egui::vec2(8.0, 1.0), tl + egui::vec2(w - 8.0, 1.0)], stroke);
-            painter.line_segment([tl + egui::vec2(w - 8.0, 1.0), tl + egui::vec2(w - 5.0, h - 1.0)], stroke);
-            painter.line_segment([tl + egui::vec2(w - 5.0, h - 1.0), tl + egui::vec2(5.0, h - 1.0)], stroke);
-            painter.line_segment([tl + egui::vec2(5.0, h - 1.0), tl + egui::vec2(8.0, 1.0)], stroke);
+            painter.line_segment(
+                [tl + egui::vec2(8.0, 1.0), tl + egui::vec2(w - 8.0, 1.0)],
+                stroke,
+            );
+            painter.line_segment(
+                [
+                    tl + egui::vec2(w - 8.0, 1.0),
+                    tl + egui::vec2(w - 5.0, h - 1.0),
+                ],
+                stroke,
+            );
+            painter.line_segment(
+                [
+                    tl + egui::vec2(w - 5.0, h - 1.0),
+                    tl + egui::vec2(5.0, h - 1.0),
+                ],
+                stroke,
+            );
+            painter.line_segment(
+                [tl + egui::vec2(5.0, h - 1.0), tl + egui::vec2(8.0, 1.0)],
+                stroke,
+            );
             painter.add(egui::epaint::TextShape {
                 pos: rect.left_top() + egui::vec2((req_size.x - galley.size().x) / 2.0, 5.0),
                 galley: galley.galley,
@@ -195,13 +234,22 @@ impl InputItem {
         }
 
         fn draw_thumb(text: &str, color: egui::Color32, ui: &mut egui::Ui) -> egui::Painter {
-            let galley = egui::WidgetText::RichText(text.into()).into_galley(ui, Some(false), 0.0, egui::FontSelection::Default);
+            let galley = egui::WidgetText::RichText(text.into()).into_galley(
+                ui,
+                Some(false),
+                0.0,
+                egui::FontSelection::Default,
+            );
             let req_size = galley.size() + egui::vec2(16.0, 10.0);
-            
+
             let (response, painter) = ui.allocate_painter(req_size, egui::Sense::hover());
             let stroke = egui::Stroke::new(1.0, color);
-            
-            painter.circle_stroke(response.rect.center(), f32::max(galley.size().x, galley.size().y) * 0.55, stroke);
+
+            painter.circle_stroke(
+                response.rect.center(),
+                f32::max(galley.size().x, galley.size().y) * 0.55,
+                stroke,
+            );
 
             painter.add(egui::epaint::TextShape {
                 pos: response.rect.left_top() + egui::vec2(8.0, 4.0),
@@ -214,7 +262,12 @@ impl InputItem {
             painter
         }
 
-        fn draw_arrow(painter: &egui::Painter, point: egui::Pos2, base_offset: egui::Vec2, color: egui::Color32) {
+        fn draw_arrow(
+            painter: &egui::Painter,
+            point: egui::Pos2,
+            base_offset: egui::Vec2,
+            color: egui::Color32,
+        ) {
             let stroke = egui::Stroke::new(1.0, color);
             let norm = egui::vec2(base_offset.y, -base_offset.x);
             painter.line_segment([point, point + base_offset + norm], stroke);
@@ -226,19 +279,37 @@ impl InputItem {
             let space = 1.0;
             let size = 3.0 * step + 4.0 * space;
             let stroke = egui::Stroke::new(1.0, color);
-            let (response, painter) = ui.allocate_painter(egui::vec2(size + 4.0, size + 4.0), egui::Sense::hover());
+            let (response, painter) =
+                ui.allocate_painter(egui::vec2(size + 4.0, size + 4.0), egui::Sense::hover());
             let tl = response.rect.left_top();
             for (i, origin) in [
-                (space * 2.0 + step * 1.5, space * 1.0 + step * 0.5), 
-                (space * 3.0 + step * 2.5, space * 2.0 + step * 1.5), 
-                (space * 2.0 + step * 1.5, space * 3.0 + step * 2.5), 
-                (space * 1.0 + step * 0.5, space * 2.0 + step * 1.5), 
-            ].into_iter().enumerate() {
+                (space * 2.0 + step * 1.5, space * 1.0 + step * 0.5),
+                (space * 3.0 + step * 2.5, space * 2.0 + step * 1.5),
+                (space * 2.0 + step * 1.5, space * 3.0 + step * 2.5),
+                (space * 1.0 + step * 0.5, space * 2.0 + step * 1.5),
+            ]
+            .into_iter()
+            .enumerate()
+            {
                 if square {
                     if i == hilight {
-                        painter.rect_filled(egui::Rect::from_center_size(tl + origin.into(), egui::vec2(step / 2.0, step / 2.0)), egui::Rounding::none(), color);
+                        painter.rect_filled(
+                            egui::Rect::from_center_size(
+                                tl + origin.into(),
+                                egui::vec2(step / 2.0, step / 2.0),
+                            ),
+                            egui::Rounding::none(),
+                            color,
+                        );
                     } else {
-                        painter.rect_stroke(egui::Rect::from_center_size(tl + origin.into(), egui::vec2(step / 2.0, step / 2.0)), egui::Rounding::none(), stroke);
+                        painter.rect_stroke(
+                            egui::Rect::from_center_size(
+                                tl + origin.into(),
+                                egui::vec2(step / 2.0, step / 2.0),
+                            ),
+                            egui::Rounding::none(),
+                            stroke,
+                        );
                     }
                 } else {
                     if i == hilight {
@@ -261,25 +332,31 @@ impl InputItem {
                     GamepadAxisType::LeftStickY => ("L", false),
                     GamepadAxisType::RightStickX => ("R", true),
                     GamepadAxisType::RightStickY => ("R", false),
-                    _ => ("?", false)
+                    _ => ("?", false),
                 };
 
-                let color = egui::Color32::from_rgb(255,255,255);
+                let color = egui::Color32::from_rgb(255, 255, 255);
                 let painter = draw_thumb(text, color, ui);
                 let clip_rect = painter.clip_rect();
                 let req_size = clip_rect.size();
 
                 let (arrow_mid, offset) = match (horiz, right) {
-                    (true, true) => (egui::vec2(req_size.x - 1.0, req_size.y / 2.0), egui::vec2(-3.0, 0.0)),
+                    (true, true) => (
+                        egui::vec2(req_size.x - 1.0, req_size.y / 2.0),
+                        egui::vec2(-3.0, 0.0),
+                    ),
                     (true, false) => (egui::vec2(1.0, req_size.y / 2.0), egui::vec2(3.0, 0.0)),
-                    (false, false) => (egui::vec2(req_size.x / 2.0, req_size.y), egui::vec2(0.0, -3.0)),
+                    (false, false) => (
+                        egui::vec2(req_size.x / 2.0, req_size.y),
+                        egui::vec2(0.0, -3.0),
+                    ),
                     (false, true) => (egui::vec2(req_size.x / 2.0, 1.0), egui::vec2(0.0, 3.0)),
                 };
 
                 draw_arrow(&painter, clip_rect.left_top() + arrow_mid, offset, color);
             }
             InputItem::Button(b) => {
-                let color = egui::Color32::from_rgb(255,255,255);
+                let color = egui::Color32::from_rgb(255, 255, 255);
                 match b {
                     GamepadButtonType::LeftTrigger => draw_key("L1".into(), ui),
                     GamepadButtonType::LeftTrigger2 => draw_key("L2".into(), ui),
@@ -293,11 +370,31 @@ impl InputItem {
                         };
                         let painter = draw_thumb(text, color, ui);
                         let rect = painter.clip_rect();
-                        draw_arrow(&painter, rect.left_top() + egui::vec2(3.0, 3.0), egui::vec2(-2.0, -2.0), color);
-                        draw_arrow(&painter, rect.right_top() + egui::vec2(-3.0, 3.0), egui::vec2(2.0, -2.0), color);
-                        draw_arrow(&painter, rect.left_bottom() + egui::vec2(3.0, -3.0), egui::vec2(-2.0, 2.0), color);
-                        draw_arrow(&painter, rect.right_bottom() + egui::vec2(-3.0, -3.0), egui::vec2(2.0, 2.0), color);
-                    },
+                        draw_arrow(
+                            &painter,
+                            rect.left_top() + egui::vec2(3.0, 3.0),
+                            egui::vec2(-2.0, -2.0),
+                            color,
+                        );
+                        draw_arrow(
+                            &painter,
+                            rect.right_top() + egui::vec2(-3.0, 3.0),
+                            egui::vec2(2.0, -2.0),
+                            color,
+                        );
+                        draw_arrow(
+                            &painter,
+                            rect.left_bottom() + egui::vec2(3.0, -3.0),
+                            egui::vec2(-2.0, 2.0),
+                            color,
+                        );
+                        draw_arrow(
+                            &painter,
+                            rect.right_bottom() + egui::vec2(-3.0, -3.0),
+                            egui::vec2(2.0, 2.0),
+                            color,
+                        );
+                    }
                     GamepadButtonType::South => draw_buttons(false, 2, color, ui),
                     GamepadButtonType::East => draw_buttons(false, 1, color, ui),
                     GamepadButtonType::North => draw_buttons(false, 0, color, ui),
@@ -321,7 +418,7 @@ impl InputItem {
 
 #[derive(Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'static"))]
-pub struct ActionInputs{
+pub struct ActionInputs {
     items: HashMap<&'static str, Vec<InputItem>>,
     #[serde(skip)]
     prev: HashSet<&'static str>,
@@ -332,24 +429,115 @@ pub struct ActionInputs{
 impl Default for ActionInputs {
     fn default() -> Self {
         use InputItem::*;
-        Self{
+        Self {
             items: HashMap::from_iter(vec![
-                ("menu", vec![Key(KeyCode::Escape), Button(GamepadButtonType::Start)]),
-                ("zoom in", vec![Key(KeyCode::PageUp), Button(GamepadButtonType::RightTrigger2)]),
-                ("zoom out", vec![Key(KeyCode::PageDown), Button(GamepadButtonType::LeftTrigger2)]),
-                ("pan left", vec![Key(KeyCode::Left), Axis(GamepadAxisType::RightStickX, false)]),
-                ("pan right", vec![Key(KeyCode::Right), Axis(GamepadAxisType::RightStickX, true)]),
-                ("pan up", vec![Key(KeyCode::Up), Axis(GamepadAxisType::RightStickY, true)]),
-                ("pan down", vec![Key(KeyCode::Down), Axis(GamepadAxisType::RightStickY, false)]),
-                ("select all", vec![Key(KeyCode::P), Button(GamepadButtonType::RightThumb)]),
-                ("move left", vec![Key(KeyCode::A), Axis(GamepadAxisType::LeftStickX, false), Button(GamepadButtonType::DPadLeft)]),
-                ("move right", vec![Key(KeyCode::D), Axis(GamepadAxisType::LeftStickX, true), Button(GamepadButtonType::DPadRight)]),
-                ("move up", vec![Key(KeyCode::W), Axis(GamepadAxisType::LeftStickY, true), Button(GamepadButtonType::DPadUp)]),
-                ("move down", vec![Key(KeyCode::S), Axis(GamepadAxisType::LeftStickY, false), Button(GamepadButtonType::DPadDown)]),
-                ("main action", vec![Key(KeyCode::Space), Key(KeyCode::Return), Button(GamepadButtonType::South)]),
-                ("second action", vec![Key(KeyCode::LControl), Button(GamepadButtonType::North)]),
-                ("turn left", vec![Key(KeyCode::Q), Button(GamepadButtonType::LeftTrigger)]),
-                ("turn right", vec![Key(KeyCode::E), Button(GamepadButtonType::RightTrigger)]),
+                (
+                    "menu",
+                    vec![Key(KeyCode::Escape), Button(GamepadButtonType::Start)],
+                ),
+                (
+                    "zoom in",
+                    vec![
+                        Key(KeyCode::PageUp),
+                        Button(GamepadButtonType::RightTrigger2),
+                    ],
+                ),
+                (
+                    "zoom out",
+                    vec![
+                        Key(KeyCode::PageDown),
+                        Button(GamepadButtonType::LeftTrigger2),
+                    ],
+                ),
+                (
+                    "pan left",
+                    vec![
+                        Key(KeyCode::Left),
+                        Axis(GamepadAxisType::RightStickX, false),
+                    ],
+                ),
+                (
+                    "pan right",
+                    vec![
+                        Key(KeyCode::Right),
+                        Axis(GamepadAxisType::RightStickX, true),
+                    ],
+                ),
+                (
+                    "pan up",
+                    vec![Key(KeyCode::Up), Axis(GamepadAxisType::RightStickY, true)],
+                ),
+                (
+                    "pan down",
+                    vec![
+                        Key(KeyCode::Down),
+                        Axis(GamepadAxisType::RightStickY, false),
+                    ],
+                ),
+                (
+                    "select all",
+                    vec![Key(KeyCode::P), Button(GamepadButtonType::RightThumb)],
+                ),
+                (
+                    "move left",
+                    vec![
+                        Key(KeyCode::A),
+                        Axis(GamepadAxisType::LeftStickX, false),
+                        Button(GamepadButtonType::DPadLeft),
+                    ],
+                ),
+                (
+                    "move right",
+                    vec![
+                        Key(KeyCode::D),
+                        Axis(GamepadAxisType::LeftStickX, true),
+                        Button(GamepadButtonType::DPadRight),
+                    ],
+                ),
+                (
+                    "move up",
+                    vec![
+                        Key(KeyCode::W),
+                        Axis(GamepadAxisType::LeftStickY, true),
+                        Button(GamepadButtonType::DPadUp),
+                    ],
+                ),
+                (
+                    "move down",
+                    vec![
+                        Key(KeyCode::S),
+                        Axis(GamepadAxisType::LeftStickY, false),
+                        Button(GamepadButtonType::DPadDown),
+                    ],
+                ),
+                (
+                    "main action",
+                    vec![
+                        Key(KeyCode::Space),
+                        Key(KeyCode::Return),
+                        Button(GamepadButtonType::South),
+                    ],
+                ),
+                (
+                    "second action",
+                    vec![Key(KeyCode::LControl), Button(GamepadButtonType::North)],
+                ),
+                (
+                    "third action",
+                    vec![Key(KeyCode::Home), Button(GamepadButtonType::West)],
+                ),
+                (
+                    "fourth action",
+                    vec![Key(KeyCode::End), Button(GamepadButtonType::East)],
+                ),
+                (
+                    "turn left",
+                    vec![Key(KeyCode::Q), Button(GamepadButtonType::LeftTrigger)],
+                ),
+                (
+                    "turn right",
+                    vec![Key(KeyCode::E), Button(GamepadButtonType::RightTrigger)],
+                ),
             ]),
             prev: Default::default(),
             last_used: Default::default(),
@@ -387,11 +575,17 @@ impl ActionInputs {
                     if inputs.key_input.pressed(*key) {
                         self.last_used = LastControlType::Keyboard;
                         return true;
-                    }        
-                },
+                    }
+                }
                 InputItem::Axis(axis_type, right) => {
                     if let Some(gamepad) = inputs.pad.0 {
-                        let axis = inputs.axes.get(GamepadAxis{ gamepad, axis_type: *axis_type }).unwrap();
+                        let axis = inputs
+                            .axes
+                            .get(GamepadAxis {
+                                gamepad,
+                                axis_type: *axis_type,
+                            })
+                            .unwrap();
                         if axis > 0.5 && *right {
                             self.last_used = LastControlType::Gamepad;
                             return true;
@@ -401,16 +595,22 @@ impl ActionInputs {
                             return true;
                         }
                     }
-                },
+                }
                 InputItem::Button(button_type) => {
                     if let Some(gamepad) = inputs.pad.0 {
-                        let button = inputs.buttons.get(GamepadButton { gamepad, button_type: *button_type }).unwrap();
+                        let button = inputs
+                            .buttons
+                            .get(GamepadButton {
+                                gamepad,
+                                button_type: *button_type,
+                            })
+                            .unwrap();
                         if button > 0.5 {
                             self.last_used = LastControlType::Gamepad;
                             return true;
                         }
                     }
-                },
+                }
             }
         }
 
@@ -419,18 +619,22 @@ impl ActionInputs {
 }
 
 fn show_controls(
-    mut egui_context: ResMut<EguiContext>,   
+    mut egui_context: ResMut<EguiContext>,
     controllers: Query<&Controller>,
     actions: Res<ActionInputs>,
     last_used: Res<LastControlType>,
 ) {
     let add = |ui: &mut egui::Ui, item: &'static str, action: String| {
-        if let Some(input) = actions.items.get(item).and_then(|v| v.iter().find(|i| matches!(i, InputItem::Key(_)) == (*last_used == LastControlType::Keyboard))) {
+        if let Some(input) = actions.items.get(item).and_then(|v| {
+            v.iter().find(|i| {
+                matches!(i, InputItem::Key(_)) == (*last_used == LastControlType::Keyboard)
+            })
+        }) {
             ui.horizontal(|ui| {
                 if action != "" {
                     ui.label(format!("{}: ", action));
                 }
-    
+
                 input.print(ui);
             });
         }
@@ -438,65 +642,61 @@ fn show_controls(
 
     let sz_y = egui_extras::Size::exact(23.0);
     let sz_x = egui_extras::Size::exact(30.0);
-    egui::Window::new("controls").anchor(egui::Align2::RIGHT_TOP, (-5.0, 5.0)).title_bar(false).resizable(false).show(egui_context.ctx_mut(), |ui| {
-        ui.set_max_width(100.0);
-        for controller in controllers.iter().filter(|c| c.enabled) {
-            if let Some(disp) = controller.display_directions {
-                ui.scope(|ui| {
-                    ui.style_mut().spacing.item_spacing = egui::vec2(0.0, 0.0);
-                    StripBuilder::new(ui)
-                        .sizes(sz_y, 3)
-                        .vertical(|mut row| {
-                            row.strip( |strip| {
-                                strip
-                                    .sizes(sz_x, 3)
-                                    .horizontal(|mut col| {
-                                        col.empty();
-                                        col.cell(|ui| {
-                                            add(ui, controller.up.0, "".into());
-                                        });
-                                        col.empty();
+    egui::Window::new("controls")
+        .anchor(egui::Align2::RIGHT_TOP, (-5.0, 5.0))
+        .title_bar(false)
+        .resizable(false)
+        .show(egui_context.ctx_mut(), |ui| {
+            ui.set_max_width(100.0);
+            for controller in controllers.iter().filter(|c| c.enabled) {
+                if let Some(disp) = controller.display_directions {
+                    ui.scope(|ui| {
+                        ui.style_mut().spacing.item_spacing = egui::vec2(0.0, 0.0);
+                        StripBuilder::new(ui).sizes(sz_y, 3).vertical(|mut row| {
+                            row.strip(|strip| {
+                                strip.sizes(sz_x, 3).horizontal(|mut col| {
+                                    col.empty();
+                                    col.cell(|ui| {
+                                        add(ui, controller.up.0, "".into());
                                     });
+                                    col.empty();
+                                });
                             });
-                            row.strip( |strip| {
-                                strip
-                                    .sizes(sz_x, 3)
-                                    .horizontal(|mut col| {
-                                        col.cell(|ui| {
-                                            add(ui, controller.left.0, "".into());
-                                        });
-                                        col.cell(|ui| {
-                                            ui.horizontal_centered(|ui| {
-                                                ui.vertical_centered(|ui| {
-                                                    ui.label(disp);
-                                                });
+                            row.strip(|strip| {
+                                strip.sizes(sz_x, 3).horizontal(|mut col| {
+                                    col.cell(|ui| {
+                                        add(ui, controller.left.0, "".into());
+                                    });
+                                    col.cell(|ui| {
+                                        ui.horizontal_centered(|ui| {
+                                            ui.vertical_centered(|ui| {
+                                                ui.label(disp);
                                             });
                                         });
-                                        col.cell(|ui| {
-                                            add(ui, controller.right.0, "".into());
-                                        });
                                     });
+                                    col.cell(|ui| {
+                                        add(ui, controller.right.0, "".into());
+                                    });
+                                });
                             });
-                            row.strip( |strip| {
-                                strip
-                                    .sizes(sz_x, 3)
-                                    .horizontal(|mut col| {
-                                        col.empty();
-                                        col.cell(|ui| {
-                                            add(ui, controller.down.0, "".into());
-                                        });
-                                        col.empty();
+                            row.strip(|strip| {
+                                strip.sizes(sz_x, 3).horizontal(|mut col| {
+                                    col.empty();
+                                    col.cell(|ui| {
+                                        add(ui, controller.down.0, "".into());
                                     });
+                                    col.empty();
+                                });
                             });
                         });
-                });
-            }
+                    });
+                }
 
-            for (action, (item, _), display) in controller.action.iter() {
-                if *display {
-                    add(ui, item, action.to_string());
+                for (action, (item, _), display) in controller.action.iter() {
+                    if *display {
+                        add(ui, item, action.to_string());
+                    }
                 }
             }
-        }
-    });
+        });
 }

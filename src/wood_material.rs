@@ -1,13 +1,10 @@
-use bevy::{
-    prelude::*, reflect::TypeUuid,
-    render::render_resource::*,
-};
+use bevy::{prelude::*, reflect::TypeUuid, render::render_resource::*};
 
 use crate::shader::{SimpleTextureMaterial, SimpleTextureSpec};
 
 pub struct WoodMaterialPlugin;
 
-pub type WoodMaterial = SimpleTextureMaterial::<WoodMaterialSpec>;
+pub type WoodMaterial = SimpleTextureMaterial<WoodMaterialSpec>;
 
 impl Plugin for WoodMaterialPlugin {
     fn build(&self, app: &mut App) {

@@ -1,21 +1,28 @@
-use bevy::{prelude::*, ecs::event::{Events, ManualEventReader}, utils::HashMap};
+use bevy::{
+    ecs::event::{Events, ManualEventReader},
+    prelude::*,
+    utils::HashMap,
+};
 use bevy_egui::{egui, EguiContext};
 use bevy_kira_audio::AudioChannel;
 use egui_extras::StripBuilder;
 
-use crate::{structs::{ActionEvent, Position, PopupMenuEvent, PopupMenu, MenuItem}, LevelSet, SpawnLevelEvent, spawn_random, LevelDef, input::Controller, MenuChannel, Permanent, model::LevelBase};
+use crate::{
+    input::Controller,
+    model::LevelBase,
+    spawn_random,
+    structs::{ActionEvent, MenuItem, PopupMenu, PopupMenuEvent, Position},
+    LevelDef, LevelSet, MenuChannel, Permanent, SpawnLevelEvent,
+};
 
 #[derive(Component)]
 struct MenuSelect;
 
-pub fn spawn_main_menu(
-    mut evs: EventReader<ActionEvent>,
-    mut spawn: EventWriter<PopupMenuEvent>,
-) {
+pub fn spawn_main_menu(mut evs: EventReader<ActionEvent>, mut spawn: EventWriter<PopupMenuEvent>) {
     for ev in evs.iter() {
         if ev.label == "main menu" {
-            spawn.send(PopupMenuEvent { 
-                sender: ev.sender, 
+            spawn.send(PopupMenuEvent {
+                sender: ev.sender,
                 menu: PopupMenu {
                     heading: "Main Menu".into(),
                     items: vec![
@@ -23,8 +30,8 @@ pub fn spawn_main_menu(
                         ("Options".into(), "options"),
                         ("Quit to Desktop".into(), "quit"),
                     ],
-                    cancel_action: None, 
-                }
+                    cancel_action: None,
+                },
             })
         }
     }
@@ -40,8 +47,8 @@ pub fn spawn_play_menu(
     for ev in reader.iter(&evs) {
         match ev.label {
             "play" => {
-                spawn_menu.send(PopupMenuEvent { 
-                    sender: ev.sender, 
+                spawn_menu.send(PopupMenuEvent {
+                    sender: ev.sender,
                     menu: PopupMenu {
                         heading: "Choose Difficulty".into(),
                         items: vec![
@@ -50,8 +57,8 @@ pub fn spawn_play_menu(
                             ("Hard".into(), "play hard"),
                             ("Mixed".into(), "play mix"),
                         ],
-                        cancel_action: Some("main menu"), 
-                    }
+                        cancel_action: Some("main menu"),
+                    },
                 });
             }
             "play easy" => {
@@ -70,9 +77,8 @@ pub fn spawn_play_menu(
                 *levelset = LevelSet::default();
                 spawn_random(&mut spawn_level, &mut levelset, 30, 0);
             }
-            _ => ()
+            _ => (),
         }
-
     }
 }
 
@@ -85,12 +91,19 @@ pub fn spawn_in_level_menu(
 ) {
     for ev in evs.iter() {
         if ev.label == "pause" {
-            println!("Paused\n[{}/{}/{}]", level.num_holes, level.total_blocks, level.seed);
+            println!(
+                "Paused\n[{}/{}/{}]",
+                level.num_holes, level.total_blocks, level.seed
+            );
             println!("difficulty: {}", base.0.difficulty());
-            spawn.send(PopupMenuEvent { 
-                sender: ev.sender, 
+            spawn.send(PopupMenuEvent {
+                sender: ev.sender,
                 menu: PopupMenu {
-                    heading: format!("Paused ({}/{})\n", set.1 + 1, set.0.iter().filter(|l| l.is_some()).count()),
+                    heading: format!(
+                        "Paused ({}/{})\n",
+                        set.1 + 1,
+                        set.0.iter().filter(|l| l.is_some()).count()
+                    ),
                     items: vec![
                         ("Resume".into(), "cancel"),
                         ("Restart Level".into(), "restart"),
@@ -98,7 +111,7 @@ pub fn spawn_in_level_menu(
                         ("Quit to Desktop".into(), "quit"),
                     ],
                     cancel_action: Some("cancel"),
-                }
+                },
             })
         }
     }
@@ -115,7 +128,7 @@ pub fn spawn_popup_menu(
     menu_items: Query<Entity, With<MenuItem>>,
     mut active_menu: Local<Option<(PopupMenu, Entity)>>,
     mut menu_position: Local<usize>,
-    asset_server: Res<AssetServer>, 
+    asset_server: Res<AssetServer>,
     audio: Res<AudioChannel<MenuChannel>>,
 ) {
     for ev in spawn_evs.iter() {
@@ -155,11 +168,13 @@ pub fn spawn_popup_menu(
         egui::CentralPanel::default().show(egui_context.ctx_mut(), |ui| {
             StripBuilder::new(ui)
                 .size(egui_extras::Size::relative(0.33))
-                .sizes(egui_extras::Size::relative(0.5 / menu.items.len() as f32), menu.items.len())
+                .sizes(
+                    egui_extras::Size::relative(0.5 / menu.items.len() as f32),
+                    menu.items.len(),
+                )
                 .size(egui_extras::Size::remainder())
                 .vertical(|mut strip| {
                     strip.cell(|ui| {
-
                         let heading = egui::RichText::from(menu.heading.as_str()).size(100.0);
                         ui.vertical_centered(|ui| ui.label(heading));
                     });
@@ -169,7 +184,9 @@ pub fn spawn_popup_menu(
                             let text = egui::RichText::from(text).size(60.0);
                             ui.vertical_centered(|ui| {
                                 if i == *menu_position {
-                                    ui.label(text.background_color(egui::Rgba::from_rgba_premultiplied(0.2, 0.2, 0.2, 0.2)));
+                                    ui.label(text.background_color(
+                                        egui::Rgba::from_rgba_premultiplied(0.2, 0.2, 0.2, 0.2),
+                                    ));
                                 } else {
                                     ui.label(text);
                                 }
@@ -195,7 +212,8 @@ pub fn spawn_popup_menu(
                     audio.play(asset_server.load("audio/zapsplat_multimedia_alert_mallet_hit_short_single_generic_003_79278.mp3"));
                 }
                 "down" => {
-                    *menu_position = (*menu_position + 1) % active_menu.as_ref().unwrap().0.items.len();
+                    *menu_position =
+                        (*menu_position + 1) % active_menu.as_ref().unwrap().0.items.len();
                     audio.set_playback_rate(1.2);
                     audio.play(asset_server.load("audio/zapsplat_multimedia_alert_mallet_hit_short_single_generic_003_79278.mp3"));
                 }
@@ -214,11 +232,15 @@ pub fn spawn_popup_menu(
                         }
                     }
 
-                    to_send = Some(ActionEvent{ sender: ev.sender, label: cancel_action, target: None });
+                    to_send = Some(ActionEvent {
+                        sender: ev.sender,
+                        label: cancel_action,
+                        target: None,
+                    });
                     *active_menu = None;
                     audio.set_playback_rate(1.2);
                     audio.play(asset_server.load("audio/zapsplat_multimedia_game_sound_game_show_correct_tone_bright_positive_006_80747.mp3"));
-                },
+                }
                 "select" => {
                     for item in menu_items.iter() {
                         commands.entity(item).despawn_recursive();
@@ -231,11 +253,15 @@ pub fn spawn_popup_menu(
                     }
 
                     let (menu, sender) = active_menu.take().unwrap();
-                    to_send = Some(ActionEvent{ sender: sender, label: menu.items[*menu_position].1, target: None });
+                    to_send = Some(ActionEvent {
+                        sender: sender,
+                        label: menu.items[*menu_position].1,
+                        target: None,
+                    });
                     audio.set_playback_rate(1.2);
                     audio.play(asset_server.load("audio/zapsplat_multimedia_game_sound_game_show_correct_tone_bright_positive_006_80747.mp3"));
                 }
-                _ => ()
+                _ => (),
             }
         }
     }

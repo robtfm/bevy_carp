@@ -1,4 +1,7 @@
-use bevy::{prelude::*, render::mesh::{Indices, PrimitiveTopology}};
+use bevy::{
+    prelude::*,
+    render::mesh::{Indices, PrimitiveTopology},
+};
 
 #[derive(Debug, Copy, Clone)]
 pub struct BLQuad {
@@ -15,10 +18,26 @@ impl BLQuad {
 impl From<BLQuad> for Mesh {
     fn from(quad: BLQuad) -> Self {
         let vertices = [
-            ([0.0,          0.0,            0.0], [0.0, 0.0, 1.0], [quad.offset.x,                  quad.offset.y]),
-            ([0.0,          quad.size.y,    0.0], [0.0, 0.0, 1.0], [quad.offset.x,                  quad.offset.y + quad.size.y]),
-            ([quad.size.x,  quad.size.y,    0.0], [0.0, 0.0, 1.0], [quad.offset.x + quad.size.x,    quad.offset.y + quad.size.y]),
-            ([quad.size.x,  0.0,            0.0], [0.0, 0.0, 1.0], [quad.offset.x + quad.size.x,    quad.offset.y]),
+            (
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0],
+                [quad.offset.x, quad.offset.y],
+            ),
+            (
+                [0.0, quad.size.y, 0.0],
+                [0.0, 0.0, 1.0],
+                [quad.offset.x, quad.offset.y + quad.size.y],
+            ),
+            (
+                [quad.size.x, quad.size.y, 0.0],
+                [0.0, 0.0, 1.0],
+                [quad.offset.x + quad.size.x, quad.offset.y + quad.size.y],
+            ),
+            (
+                [quad.size.x, 0.0, 0.0],
+                [0.0, 0.0, 1.0],
+                [quad.offset.x + quad.size.x, quad.offset.y],
+            ),
         ];
 
         let indices = Indices::U32(vec![0, 2, 1, 0, 3, 2]);
