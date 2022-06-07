@@ -98,8 +98,8 @@ fn main() {
         .add_startup_system(egui_setup)
         .add_system(handle_window_resize)
         // menus
-        .add_startup_system(setup_main_menu)
-        .add_system(spawn_main_menu)
+        .add_startup_system(splash)
+        .add_system_to_stage(CoreStage::PostUpdate, spawn_main_menu.after(camera_focus)) // despawns, must run after cam focus so the entities are spawned to focus on
         .add_system(spawn_play_menu)
         .add_system(spawn_in_level_menu)
         .add_system(spawn_popup_menu)
@@ -128,7 +128,6 @@ fn main() {
         .add_system_to_stage(CoreStage::PostUpdate, change_state)
         // camera management
         .add_system_to_stage(CoreStage::PostUpdate, camera_focus)
-
         .run();
 }
 
@@ -143,7 +142,7 @@ struct ResetEvent {
 #[derive(Component)]
 struct Permanent;
 
-fn setup_main_menu(mut evs: EventWriter<ActionEvent>) {
+fn splash(mut evs: EventWriter<ActionEvent>) {
     evs.send(ActionEvent {
         sender: Entity::from_raw(0),
         label: "main menu",
@@ -156,7 +155,7 @@ fn egui_setup(mut egui_ctx: ResMut<EguiContext>) {
         bg_fill: egui::Rgba::from_rgba_premultiplied(0.0, 0.0, 0.0, 0.8).into(),
         bg_stroke: egui::Stroke::new(1.0, egui::Rgba::from_rgba_premultiplied(0.0, 0.0, 0.0, 0.8)),
         rounding: egui::Rounding::same(5.0),
-        fg_stroke: egui::Stroke::new(1.0, egui::Rgba::from_rgba_premultiplied(1.0, 1.0, 1.0, 1.0)),
+        fg_stroke: egui::Stroke::new(1.0, egui::Rgba::from_rgba_premultiplied(0.8, 0.8, 1.0, 1.0)),
         expansion: 0.0,
     };
 
@@ -379,20 +378,32 @@ fn create_level(
         let size = level.extents;
         let pos = IVec2::new(-size.x / 2, 1);
         let merger = CoordSet::merge(level.holes.holes.iter());
-        spawn_planks.send(SpawnPlank(
-            merger,
-            Position(pos),
-            false,
-            true,
-            Some(level.extents),
-        ));
+        spawn_planks.send(SpawnPlank {
+            plank: merger,
+            position: Position(pos),
+            is_plank: false,
+            is_interactive: true,
+            manual_extents: Some(level.extents),
+        });
 
         for plank in level.planks.iter() {
-            spawn_planks.send(SpawnPlank(plank.0.clone(), plank.1, true, true, None));
+            spawn_planks.send(SpawnPlank {
+                plank: plank.0.clone(),
+                position: plank.1,
+                is_plank: true,
+                is_interactive: true,
+                manual_extents: None,
+            });
         }
 
         for (plank, pos, nails) in done_planks.0.iter() {
-            spawn_planks.send(SpawnPlank(plank.clone(), *pos, true, false, None));
+            spawn_planks.send(SpawnPlank {
+                plank: plank.clone(),
+                position: *pos,
+                is_plank: true,
+                is_interactive: false,
+                manual_extents: None,
+            });
             for coord in nails.iter() {
                 spawn_nails.send(SpawnNail(*coord));
             }
@@ -938,9 +949,7 @@ fn cut_plank(
                     let mut valid = offsets
                         .iter()
                         // check if last cancel pos is valid
-                        .filter(|&&offset| {
-                            pos.0 + offset == *last_cutter_pos
-                        })
+                        .filter(|&&offset| pos.0 + offset == *last_cutter_pos)
                         .chain(
                             // check if any nearby is valid
                             offsets.iter().filter(|&&offset| {
@@ -950,7 +959,7 @@ fn cut_plank(
                                     .filter(|&&n| plank.0.contains(base + n - IVec2::ONE))
                                     .count();
                                 count > 1 && count < 4
-                            })
+                            }),
                         );
 
                     let Some(&valid) = valid.next() else {
@@ -1034,7 +1043,13 @@ fn cut_plank(
                                 shift, base_plank.0.texture_offset, plank.texture_offset
                             );
 
-                            spawn_plank.send(SpawnPlank(plank, Position(pos), true, true, None));
+                            spawn_plank.send(SpawnPlank {
+                                plank,
+                                position: Position(pos),
+                                is_plank: true,
+                                is_interactive: true,
+                                manual_extents: None,
+                            });
                         }
 
                         for (mut controller, children, is_cursor) in cursor.iter_mut() {
@@ -1388,7 +1403,13 @@ fn target(
     }
 }
 
-struct SpawnPlank(Plank, Position, bool, bool, Option<IVec2>);
+struct SpawnPlank {
+    plank: Plank,
+    position: Position,
+    is_plank: bool,
+    is_interactive: bool,
+    manual_extents: Option<IVec2>,
+}
 
 fn spawn_planks(
     mut evs: EventReader<SpawnPlank>,
@@ -1398,10 +1419,10 @@ fn spawn_planks(
     mut images: ResMut<Assets<Image>>,
 ) {
     for ev in evs.iter() {
-        let mut plank = ev.0.clone();
-        let mut pos = ev.1;
+        let mut plank = ev.plank.clone();
+        let mut pos = ev.position;
 
-        let fixed_extents = ev.4;
+        let fixed_extents = ev.manual_extents;
 
         // fix up
         if fixed_extents.is_none() {
@@ -1417,7 +1438,7 @@ fn spawn_planks(
 
         let quad = BLQuad::new(size.as_vec2(), Vec2::ZERO);
 
-        let colors = match (ev.2, ev.3) {
+        let colors = match (ev.is_plank, ev.is_interactive) {
             (true, true) => (1.5, 1.2, 1.0),
             (true, false) => (1.5, 1.2, 0.0),
             (false, _) => (1.0, 1.0, 0.0),
@@ -1430,7 +1451,7 @@ fn spawn_planks(
             secondary_color: Color::rgba(0.284, 0.13, 0.118, 1.0) * colors.1,
             hilight_color: Color::rgba(0.2, 0.2, 1.0, 1.0) * colors.2,
             size: size.as_uvec2(),
-            is_plank: ev.2,
+            is_plank: ev.is_plank,
             base_color_texture: create_coordset_image(&mut images, &plank),
         };
 
@@ -1440,7 +1461,7 @@ fn spawn_planks(
         let cloned_mat = mat_handle.clone_weak();
         let mut cmds = commands.spawn();
 
-        let z = match ev.2 {
+        let z = match ev.is_plank {
             true => 0.25,
             false => 0.0,
         };
@@ -1456,9 +1477,8 @@ fn spawn_planks(
                 });
             });
 
-        if ev.2 {
-            // is_plank
-            if ev.3 {
+        if ev.is_plank {
+            if ev.is_interactive {
                 // interactable
                 cmds.insert(PlankComponent(plank.clone(), cloned_mat));
             }
@@ -1587,6 +1607,8 @@ fn hammer_home(
                             heading: format!("Nice one!\n {}/{} completed!", next, 30),
                             items,
                             cancel_action: None,
+                            transparent: false,
+                            header_size: 0.35,
                         },
                     });
                 } else {

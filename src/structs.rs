@@ -36,6 +36,8 @@ pub struct PopupMenu {
     pub heading: String,
     pub items: Vec<(String, &'static str)>,
     pub cancel_action: Option<&'static str>,
+    pub transparent: bool,
+    pub header_size: f32,
 }
 
 pub struct PopupMenuEvent {

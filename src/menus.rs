@@ -1,6 +1,7 @@
 use bevy::{
     ecs::event::{Events, ManualEventReader},
     prelude::*,
+    render::texture::{CompressedImageFormats, ImageType},
     utils::HashMap,
 };
 use bevy_egui::{egui, EguiContext};
@@ -9,32 +10,104 @@ use egui_extras::StripBuilder;
 
 use crate::{
     input::Controller,
-    model::LevelBase,
+    model::{CoordSet, LevelBase},
     spawn_random,
-    structs::{ActionEvent, MenuItem, PopupMenu, PopupMenuEvent, Position},
-    LevelDef, LevelSet, MenuChannel, Permanent, SpawnLevelEvent,
+    structs::{ActionEvent, MenuItem, PopupMenu, PopupMenuEvent, Position, PositionZ},
+    LevelDef, LevelSet, MenuChannel, Permanent, SpawnLevelEvent, SpawnPlank,
 };
 
 #[derive(Component)]
 struct MenuSelect;
 
-pub fn spawn_main_menu(mut evs: EventReader<ActionEvent>, mut spawn: EventWriter<PopupMenuEvent>) {
-    for ev in evs.iter() {
+pub(crate) fn spawn_main_menu(
+    mut actions: ResMut<Events<ActionEvent>>,
+    mut reader: Local<ManualEventReader<ActionEvent>>,
+    mut commands: Commands,
+    all: Query<Entity>,
+    mut spawn_planks: EventWriter<SpawnPlank>,
+    mut popup: EventWriter<PopupMenuEvent>,
+) {
+    let mut run = false;
+
+    for ev in reader.iter(&actions) {
         if ev.label == "main menu" {
-            spawn.send(PopupMenuEvent {
-                sender: ev.sender,
-                menu: PopupMenu {
-                    heading: "Main Menu".into(),
-                    items: vec![
-                        ("Play".into(), "play"),
-                        ("Options".into(), "options"),
-                        ("Quit to Desktop".into(), "quit"),
-                    ],
-                    cancel_action: None,
-                },
-            })
+            run = true;
         }
     }
+
+    if !run {
+        return;
+    }
+
+    for ent in all.iter() {
+        commands.entity(ent).despawn_recursive();
+    }
+
+    let bytes = std::fs::read("assets/title.png").unwrap();
+    let image = Image::from_buffer(
+        &bytes,
+        ImageType::Extension("png"),
+        CompressedImageFormats::all(),
+        false,
+    )
+    .unwrap();
+
+    let mut plank = CoordSet::default();
+    let width = image.size().x as usize;
+
+    for (i, word) in image.data.chunks(4).enumerate() {
+        if word.iter().any(|b| *b < 254) {
+            plank
+                .coords
+                .insert(IVec2::new((i % width) as i32, -((i / width) as i32)));
+        }
+    }
+
+    plank = plank.normalize();
+    plank.shift(IVec2::ONE);
+    // let manual_extents = Some(image.size().as_ivec2());
+
+    spawn_planks.send(SpawnPlank {
+        plank,
+        position: Position::default(),
+        is_plank: true,
+        is_interactive: false,
+        manual_extents: None,
+    });
+
+    let cam_id = commands
+        .spawn_bundle(PerspectiveCameraBundle {
+            perspective_projection: PerspectiveProjection {
+                fov: std::f32::consts::PI / 4.0,
+                ..Default::default()
+            },
+            ..default()
+        })
+        .insert(Position::default())
+        .insert(PositionZ::default())
+        .id();
+
+    actions.send(ActionEvent {
+        sender: cam_id,
+        label: "focus",
+        target: None,
+    });
+
+    popup.send(PopupMenuEvent {
+        sender: cam_id,
+        menu: PopupMenu {
+            heading: "".into(),
+            items: vec![
+                ("Play".into(), "play"),
+                ("Options".into(), "options"),
+                ("Credits".into(), "credits"),
+                ("Quit to Desktop".into(), "quit"),
+            ],
+            cancel_action: None,
+            transparent: true,
+            header_size: 0.4,
+        },
+    });
 }
 
 pub fn spawn_play_menu(
@@ -58,6 +131,8 @@ pub fn spawn_play_menu(
                             ("Mixed".into(), "play mix"),
                         ],
                         cancel_action: Some("main menu"),
+                        transparent: false,
+                        header_size: 0.35,
                     },
                 });
             }
@@ -111,6 +186,8 @@ pub fn spawn_in_level_menu(
                         ("Quit to Desktop".into(), "quit"),
                     ],
                     cancel_action: Some("cancel"),
+                    transparent: false,
+                    header_size: 0.35,
                 },
             })
         }
@@ -165,36 +242,51 @@ pub fn spawn_popup_menu(
     }
 
     if let Some((menu, _)) = active_menu.as_ref() {
-        egui::CentralPanel::default().show(egui_context.ctx_mut(), |ui| {
-            StripBuilder::new(ui)
-                .size(egui_extras::Size::relative(0.33))
-                .sizes(
-                    egui_extras::Size::relative(0.5 / menu.items.len() as f32),
-                    menu.items.len(),
-                )
-                .size(egui_extras::Size::remainder())
-                .vertical(|mut strip| {
-                    strip.cell(|ui| {
-                        let heading = egui::RichText::from(menu.heading.as_str()).size(100.0);
-                        ui.vertical_centered(|ui| ui.label(heading));
-                    });
+        let fill: egui::Color32 = match menu.transparent {
+            true => egui::Rgba::from_rgba_premultiplied(0.0, 0.0, 0.0, 0.0).into(),
+            false => egui::Rgba::from_rgba_premultiplied(0.0, 0.0, 0.0, 0.8).into(),
+        };
 
-                    for (i, (text, _)) in menu.items.iter().enumerate() {
+        egui::CentralPanel::default()
+            .frame(egui::Frame {
+                fill,
+                ..Default::default()
+            })
+            .show(egui_context.ctx_mut(), |ui| {
+                StripBuilder::new(ui)
+                    .size(egui_extras::Size::relative(0.1))
+                    .size(egui_extras::Size::relative(menu.header_size))
+                    .sizes(
+                        egui_extras::Size::relative(
+                            (1.0 - 0.1 - menu.header_size - 0.166) / menu.items.len() as f32,
+                        ),
+                        menu.items.len(),
+                    )
+                    .size(egui_extras::Size::remainder())
+                    .vertical(|mut strip| {
+                        strip.empty();
                         strip.cell(|ui| {
-                            let text = egui::RichText::from(text).size(60.0);
-                            ui.vertical_centered(|ui| {
-                                if i == *menu_position {
-                                    ui.label(text.background_color(
-                                        egui::Rgba::from_rgba_premultiplied(0.2, 0.2, 0.2, 0.2),
-                                    ));
-                                } else {
-                                    ui.label(text);
-                                }
-                            });
+                            let heading = egui::RichText::from(menu.heading.as_str()).size(100.0);
+                            ui.vertical_centered(|ui| ui.label(heading));
                         });
-                    }
-                });
-        });
+
+                        for (i, (text, _)) in menu.items.iter().enumerate() {
+                            strip.cell(|ui| {
+                                let text = egui::RichText::from(text).size(60.0);
+                                ui.vertical_centered(|ui| {
+                                    if i == *menu_position {
+                                        ui.label(text.background_color(
+                                            egui::Rgba::from_rgba_premultiplied(0.2, 0.2, 0.2, 0.2),
+                                        ));
+                                    } else {
+                                        ui.label(text);
+                                    }
+                                });
+                            });
+                        }
+                        strip.empty();
+                    });
+            });
     }
 
     let mut to_send = None;
