@@ -1121,7 +1121,7 @@ fn record_state(
             .map(|(pos, plank)| (plank.0.clone(), *pos))
             .collect();
 
-        println!("snap {} planks", level.planks.len());
+        debug!("snap {} planks", level.planks.len());
 
         undo.push_state(
             ev.is_action,
@@ -1130,8 +1130,8 @@ fn record_state(
             cursor_pos,
             (cam_pos, cam_pos_z),
         );
-        println!("pushed state");
-        println!("forward: {}, back: {}", undo.has_forward(), undo.has_back());
+        debug!("pushed state");
+        debug!("forward: {}, back: {}", undo.has_forward(), undo.has_back());
     }
 
     // undo.update_cursor_and_camera(cursor_pos, (cam_pos, cam_pos_z));
@@ -1152,7 +1152,7 @@ fn change_state(
     for ev in evs.iter() {
         match ev.label {
             "undo" => {
-                println!(
+                debug!(
                     "wants back, forward: {}, back: {}",
                     undo.has_forward(),
                     undo.has_back()
@@ -1162,12 +1162,12 @@ fn change_state(
 
                 if let Some(state) = undo.prev() {
                     if current_is_action && *cursor_pos != state.cursor {
-                        println!("repos");
+                        debug!("repos");
                         *cursor_pos = state.cursor;
                         *camera_pos = state.camera.0;
                         *camera_pos_z = state.camera.1;
                     } else {
-                        println!("act");
+                        debug!("act");
                         *level = state.level.clone();
                         done_planks.0 = state.done_planks.clone();
                         reset.send(ResetEvent {
@@ -1181,7 +1181,7 @@ fn change_state(
                 }
             }
             "redo" => {
-                println!(
+                debug!(
                     "wants forward, forward: {}, back: {}",
                     undo.has_forward(),
                     undo.has_back()
@@ -1189,12 +1189,12 @@ fn change_state(
 
                 if let Some(state) = undo.next() {
                     if state.is_action && *cursor_pos != state.cursor {
-                        println!("repos");
+                        debug!("repos");
                         *cursor_pos = state.cursor;
                         *camera_pos = state.camera.0;
                         *camera_pos_z = state.camera.1;
                     } else {
-                        println!("{} planks in forward", state.level.planks.len());
+                        debug!("{} planks in forward", state.level.planks.len());
                         *level = state.level.clone();
                         done_planks.0 = state.done_planks.clone();
                         reset.send(ResetEvent {

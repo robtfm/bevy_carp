@@ -30,7 +30,7 @@ impl Level {
             sum + hole_difficulty
         });
 
-        println!("hole score {} * (1 + density {})", hole_difficulty, density);
+        debug!("hole score {} * (1 + density {})", hole_difficulty, density);
         return hole_difficulty * (1.0 + density);
     }
 }
