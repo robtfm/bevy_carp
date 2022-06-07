@@ -26,7 +26,7 @@ impl Level {
         let area = plank.size().x * plank.size().y;
         let density = plank.coords.len() as f32 / area as f32;
         let hole_difficulty = self.holes.holes.iter().fold(1.0, |sum, hole| {
-            let hole_difficulty = f32::sqrt(1.0 / f32::max(4.0, hole.coords.len() as f32));
+            let hole_difficulty = f32::sqrt(1.0 / f32::max(6.0, hole.coords.len() as f32));
             sum + hole_difficulty
         });
 

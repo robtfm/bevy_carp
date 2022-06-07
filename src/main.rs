@@ -14,6 +14,7 @@
 // background
 // proper title page
 // improve cutter
+// merge pbr and use lighting
 
 #![feature(let_else)]
 
@@ -127,7 +128,7 @@ fn main() {
         .add_system_to_stage(CoreStage::PostUpdate, change_state)
         // camera management
         .add_system_to_stage(CoreStage::PostUpdate, camera_focus)
-        
+
         .run();
 }
 
@@ -893,18 +894,20 @@ fn cut_plank(
     >,
     mut vis: Query<&mut Visibility>,
     targeted: Query<(Entity, &Position, &PlankComponent), With<Targeted>>,
-    cut: Query<(Entity, &Cut)>,
+    cut: Query<(Entity, &Cut, &Position)>,
     (mut meshes, mut std_mats): (ResMut<Assets<Mesh>>, ResMut<Assets<StandardMaterial>>),
     mut spawn_plank: EventWriter<SpawnPlank>,
     mut snap: EventWriter<SnapUndo>,
     asset_server: Res<AssetServer>,
     audio: Res<AudioChannel<GrabDropChannel>>,
+    mut last_cutter_pos: Local<IVec2>,
 ) {
     for ev in ev.iter() {
         if ev.label == "cancel" {
-            if let Ok((cutter, _cut)) = cut.get(ev.sender) {
+            if let Ok((cutter, _cut, cutter_pos)) = cut.get(ev.sender) {
                 // currently cutting - cancel
                 debug!("cancel cut");
+                *last_cutter_pos = cutter_pos.0;
                 for (mut controller, children, is_cursor) in cursor.iter_mut() {
                     controller.enabled = true;
                     if is_cursor.is_some() {
@@ -931,16 +934,26 @@ fn cut_plank(
 
                     // spawn cutter
                     let offsets = [IVec2::ZERO, IVec2::X, IVec2::Y, IVec2::ONE];
-                    let valid = offsets.iter().find(|&&offset| {
-                        let base = pos.0 + offset - plank_pos.0;
-                        let count = offsets
-                            .iter()
-                            .filter(|&&n| plank.0.contains(base + n - IVec2::ONE))
-                            .count();
-                        count > 1 && count < 4
-                    });
 
-                    let Some(&valid) = valid else {
+                    let mut valid = offsets
+                        .iter()
+                        // check if last cancel pos is valid
+                        .filter(|&&offset| {
+                            pos.0 + offset == *last_cutter_pos
+                        })
+                        .chain(
+                            // check if any nearby is valid
+                            offsets.iter().filter(|&&offset| {
+                                let base = pos.0 + offset - plank_pos.0;
+                                let count = offsets
+                                    .iter()
+                                    .filter(|&&n| plank.0.contains(base + n - IVec2::ONE))
+                                    .count();
+                                count > 1 && count < 4
+                            })
+                        );
+
+                    let Some(&valid) = valid.next() else {
                         continue;
                     };
 
@@ -1000,7 +1013,7 @@ fn cut_plank(
         }
 
         if ev.label == "finish cut" {
-            if let Ok((cutter, cut)) = cut.get(ev.sender) {
+            if let Ok((cutter, cut, _cutter_pos)) = cut.get(ev.sender) {
                 if let Ok((selected_ent, pos, base_plank)) = targeted.get_single() {
                     if cut.finished {
                         debug!("base");
