@@ -7,13 +7,14 @@
 // levels
 // proper title page
 // background
+// improve cutter
 
 //tbd
+// more sfx
 // music
 // credits
 // options (inc keys)
 // quotes (in and out)
-// improve cutter
 // merge pbr and use lighting
 
 #![feature(let_else)]
@@ -177,6 +178,8 @@ fn main() {
         .add_system(update_materials)
         .add_system(spawn_planks)
         .add_system(spawn_nails)
+        .add_system(animate_cuts)
+        .add_system(animate_sparks)
         // system events
         .add_system_to_stage(CoreStage::PostUpdate, system_events)
         // undo/redo
@@ -704,11 +707,12 @@ fn update_materials(
 
 fn camera_focus(
     mut evs: EventReader<ActionEvent>,
-    mut cam: Query<(&mut Position, &mut PositionZ, &PerspectiveProjection), Without<ExtentItem>>,
+    mut cam: Query<(&mut Position, &mut PositionZ, &mut Transform, &PerspectiveProjection), (Without<ExtentItem>, Without<Cursor>)>,
     all: Query<(Entity, &Position, &ExtentItem)>,
+    // cursor: Query<&Transform, With<Cursor>>,
 ) {
     for ev in evs.iter() {
-        if let Ok((mut pos, mut z, cam)) = cam.get_mut(ev.sender) {
+        if let Ok((mut pos, mut z, mut trans, cam)) = cam.get_mut(ev.sender) {
             let mut min_x = i32::MAX;
             let mut max_x = i32::MIN;
             let mut min_y = i32::MAX;
@@ -762,8 +766,13 @@ fn camera_focus(
                     pos.0.y = max_y - y_range;
                 }
             }
+
+            // if let Ok(cursor_trans) = cursor.get_single() {
+            //     *trans = trans.looking_at(cursor_trans.translation, Vec3::Y);
+            // }
         }
     }
+
 }
 
 fn ensure_focus(
@@ -1308,7 +1317,7 @@ fn change_state(
 }
 
 enum CutEvent {
-    NewCut { from: IVec2, to: IVec2 },
+    NewCut { from: IVec2, to: IVec2, speed: f32 },
     UnCut { from: IVec2, to: IVec2 },
     CancelCut,
     FinishCut,
@@ -1317,13 +1326,13 @@ enum CutEvent {
 
 fn extend_cut(
     mut cutter: Query<
-        (&mut Cut, &mut Position, &mut PrevPosition),
+        (&mut Cut, &mut Position, &mut PrevPosition, &MoveSpeed),
         (Without<Targeted>, Changed<Position>),
     >,
     selected: Query<(&PlankComponent, &Position), With<Targeted>>,
     mut cuts: EventWriter<CutEvent>,
 ) {
-    for (mut cut, mut position, mut prev) in cutter.iter_mut() {
+    for (mut cut, mut position, mut prev, speed) in cutter.iter_mut() {
         if position.0 == prev.0 {
             continue;
         }
@@ -1380,6 +1389,7 @@ fn extend_cut(
                 cuts.send(CutEvent::NewCut {
                     from: prev.0,
                     to: position.0,
+                    speed: speed.0
                 });
 
                 if cut.is_finished(&plank.0) {
@@ -1402,6 +1412,7 @@ fn draw_cuts(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut mats: Local<Option<(Handle<StandardMaterial>, Handle<StandardMaterial>)>>,
     mut reset_events: EventReader<ResetEvent>,
+    time: Res<Time>,
 ) {
     let (working, done) = match mats.as_ref() {
         Some(data) => data,
@@ -1420,17 +1431,25 @@ fn draw_cuts(
 
     for ev in cut_evs.iter() {
         match ev {
-            CutEvent::NewCut { from, to } => {
+            CutEvent::NewCut { from, to, speed } => {
                 let id = commands
                     .spawn_bundle(PbrBundle {
                         mesh: meshes.add(
                             BLQuad::new((*from - *to).abs().as_vec2() + 0.2, Vec2::ZERO).into(),
                         ),
                         material: working.clone(),
-                        transform: Transform::from_translation(
-                            (from.min(*to).as_vec2() - 0.1).extend(PLANK_Z_HILIGHTED + 0.01),
-                        ),
+                        transform: Transform {
+                            translation: (from.as_vec2() - 0.1).extend(PLANK_Z_HILIGHTED + 0.01),
+                            scale: Vec3::new(0.2/1.2, 0.2/1.2, 1.0),
+                            ..Default::default()
+                        },
                         ..Default::default()
+                    })
+                    .insert(CuttingAnimation{
+                        start: time.seconds_since_startup(),
+                        speed: *speed,
+                        from: from.as_vec2(),
+                        to: to.as_vec2(),
                     })
                     .id();
 
@@ -1456,6 +1475,103 @@ fn draw_cuts(
                     commands.entity(*ent).insert(working.clone());
                 }
             }
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct CuttingAnimation {
+    pub start: f64,
+    pub speed: f32,
+    pub from: Vec2,
+    pub to: Vec2,
+}
+
+fn animate_cuts(
+    mut cuts: Query<(Entity, &CuttingAnimation, &mut Transform)>,
+    mut commands: Commands,
+    time: Res<Time>,
+    mut spawn_time: Local<f64>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut mats: ResMut<Assets<StandardMaterial>>,
+    mut data: Local<Option<(Handle<Mesh>, Handle<StandardMaterial>)>>,
+) {
+    let (mesh, mat) = data.get_or_insert_with(|| {
+        (
+            meshes.add(shape::Icosphere{radius: 1.0, subdivisions: 5 }.into()), 
+            mats.add(StandardMaterial{
+                base_color: Color::rgba(1.0, 1.0, 0.0, 1.0),
+                unlit: true,
+                alpha_mode: AlphaMode::Blend,
+                ..Default::default()
+            })
+        )
+    });
+
+    for (ent, cut, mut trans) in cuts.iter_mut() {
+        let perc = f32::min(1.0, ((time.seconds_since_startup() - cut.start) * cut.speed as f64) as f32);
+        let end = cut.from + (cut.to - cut.from) * perc;
+        let bl = cut.from.min(end);
+        let tr = cut.from.max(end);
+        trans.translation = (bl - 0.1).extend(PLANK_Z_HILIGHTED + 0.01);
+        let (spray_x, spray_y);
+        if cut.from.x == cut.to.x {
+             trans.scale.x = 1.0;
+             trans.scale.y = (0.2 + tr.y - bl.y) / 1.2;
+             spray_x = -20.0..20.0;
+             if cut.from.y > cut.to.y {
+                 spray_y = -25.0..0.0;
+             } else {
+                 spray_y = 0.0..25.0;
+             }
+        } else {
+            trans.scale.y = 1.0;
+            trans.scale.x = (0.2 + tr.x - bl.x) / 1.2;
+            spray_y = -20.0..20.0;
+            if cut.from.x > cut.to.x {
+                spray_x = -25.0..0.0;
+            } else {
+                spray_x = 0.0..25.0;
+            }
+       }
+
+        if perc == 1.0 {
+            commands.entity(ent).remove::<CuttingAnimation>();
+        }
+
+        let mut rng = thread_rng();
+        let spawn_count = (rng.gen_range(100.0..200.0) * time.delta_seconds()) as usize;
+        for _ in 0..spawn_count {
+            commands
+                .spawn_bundle(PbrBundle {
+                    mesh: mesh.clone(),
+                    material: mat.clone(),
+                    transform: Transform::from_translation(end.extend(PLANK_Z_HILIGHTED)).with_scale(Vec3::splat(rng.gen_range(0.05..0.10))),
+                    ..Default::default()
+                })
+                .insert(Velocity(Vec3::new(rng.gen_range(spray_x.clone()), rng.gen_range(spray_y.clone()), rng.gen_range(0.0..5.0))))
+                .insert(Die(time.seconds_since_startup() + rng.gen_range(0.0..0.1)));
+
+            *spawn_time = time.seconds_since_startup();
+        }
+    }
+}
+
+#[derive(Component)]
+pub struct Velocity(pub Vec3);
+
+#[derive(Component)]
+pub struct Die(pub f64);
+
+fn animate_sparks(
+    mut commands: Commands,
+    mut query: Query<(Entity, &Velocity, &Die, &mut Transform)>,
+    time: Res<Time>,
+) {
+    for (ent, vel, die, mut trans) in query.iter_mut() {
+        trans.translation += vel.0 * time.delta_seconds();
+        if time.seconds_since_startup() > die.0 {
+            commands.entity(ent).despawn_recursive();
         }
     }
 }
@@ -1677,7 +1793,7 @@ fn hammer_home(
                 audio.play(asset_server.load("audio/aaj_0404_HamrNail4Hits.mp3"));
 
                 let mut nails = Vec::new();
-                for coord in coords.into_iter().take(rng.gen_range(1..=max)) {
+                for coord in coords.into_iter().take(rng.gen_range(2..=max)) {
                     spawn_nails.send(SpawnNail(*coord));
                     nails.push(*coord);
                 }
