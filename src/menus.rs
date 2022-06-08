@@ -6,7 +6,9 @@ use bevy::{
 };
 use bevy_egui::{egui, EguiContext};
 use bevy_kira_audio::AudioChannel;
+use bevy_pkv::PkvStore;
 use egui_extras::StripBuilder;
+use rand::{thread_rng, Rng};
 
 use crate::{
     input::Controller,
@@ -26,6 +28,9 @@ pub(crate) fn spawn_main_menu(
     all: Query<Entity>,
     mut spawn_planks: EventWriter<SpawnPlank>,
     mut popup: EventWriter<PopupMenuEvent>,
+    mut mats: ResMut<Assets<StandardMaterial>>,
+    server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
 ) {
     let mut run = false;
 
@@ -40,8 +45,27 @@ pub(crate) fn spawn_main_menu(
     }
 
     for ent in all.iter() {
+        // even permanents
         commands.entity(ent).despawn_recursive();
     }
+
+    // background
+    let mut rng = thread_rng();
+    let id = rng.gen_range(1..=3);
+    let file = format!("lumber edit{}.png", id);
+
+    let mat = StandardMaterial {
+        base_color_texture: Some(server.load(&file)),
+        unlit: true,
+        ..Default::default()
+    };
+
+    commands.spawn_bundle(PbrBundle{
+        mesh: meshes.add(shape::Quad::new(Vec2::new(950.0,500.0)).into()),
+        material: mats.add(mat),
+        transform: Transform::from_xyz(0.0, 0.0, -500.0),
+        ..Default::default()
+    }).insert(Permanent);
 
     let bytes = std::fs::read("assets/title.png").unwrap();
     let image = Image::from_buffer(
@@ -98,14 +122,15 @@ pub(crate) fn spawn_main_menu(
         menu: PopupMenu {
             heading: "".into(),
             items: vec![
-                ("Play".into(), "play"),
-                ("Options".into(), "options"),
-                ("Credits".into(), "credits"),
-                ("Quit to Desktop".into(), "quit"),
+                ("Play".into(), "play", true),
+                ("Options".into(), "options", false),
+                ("Credits".into(), "credits", false),
+                ("Quit to Desktop".into(), "quit", true),
             ],
             cancel_action: None,
             transparent: true,
             header_size: 0.4,
+            width: 1,
         },
     });
 }
@@ -116,8 +141,29 @@ pub fn spawn_play_menu(
     mut spawn_menu: EventWriter<PopupMenuEvent>,
     mut spawn_level: EventWriter<SpawnLevelEvent>,
     mut levelset: ResMut<LevelSet>,
+    mut settings: ResMut<PkvStore>,
 ) {
+    let today = chrono::Utc::today().naive_utc();
+    let start_date = chrono::NaiveDate::from_ymd(2022, 6, 1);
+
+    // this sucks i know
+    let strs = [
+        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", 
+        "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", 
+        "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", 
+    ];
+
     for ev in reader.iter(&evs) {
+        let key;
+        for i in 0..30 {
+            if ev.label == strs[i] {
+                levelset.current_level = i;
+                spawn_level.send(SpawnLevelEvent {
+                    def: levelset.levels[i].clone(),
+                });
+            }
+        }
+
         match ev.label {
             "play" => {
                 spawn_menu.send(PopupMenuEvent {
@@ -125,37 +171,78 @@ pub fn spawn_play_menu(
                     menu: PopupMenu {
                         heading: "Choose Difficulty".into(),
                         items: vec![
-                            ("Easy".into(), "play easy"),
-                            ("Medium".into(), "play medium"),
-                            ("Hard".into(), "play hard"),
-                            ("Mixed".into(), "play mix"),
+                            ("Daily Mix".into(), "play daily", true),
+                            ("Easy".into(), "play easy", true),
+                            ("Medium".into(), "play medium", true),
+                            ("Hard".into(), "play hard", true),
                         ],
                         cancel_action: Some("main menu"),
                         transparent: false,
                         header_size: 0.35,
+                        width: 1,
                     },
                 });
+                return;
             }
             "play easy" => {
-                *levelset = LevelSet::default();
-                spawn_random(&mut spawn_level, &mut levelset, 90, 0);
+                key = "Easy";
+                *levelset = spawn_random(90, 0, "Easy Set".into(), Some(15), key);
             }
             "play medium" => {
-                *levelset = LevelSet::default();
-                spawn_random(&mut spawn_level, &mut levelset, 90, 30);
+                key = "Medium";
+                *levelset = spawn_random(90, 30, "Medium Set".into(), Some(15), key);
             }
             "play hard" => {
-                *levelset = LevelSet::default();
-                spawn_random(&mut spawn_level, &mut levelset, 90, 60);
+                key = "Hard";
+                *levelset = spawn_random(90, 60, "Hard Set".into(), Some(15), key);
             }
-            "play mix" => {
-                *levelset = LevelSet::default();
-                spawn_random(&mut spawn_level, &mut levelset, 30, 0);
+            "play daily" => {
+                let dur = today.signed_duration_since(start_date);
+                let seed = dur.num_days() * 1068;
+                key = "Daily";
+                *levelset = spawn_random(30, 0, format!("Daily Set for {}", today), Some(seed as u64), key);
             }
-            _ => (),
+            _ => return,
         }
+
+        if key == "Daily" {
+            let current_daily = settings.get("current daily date").unwrap_or(start_date);
+            if current_daily != today {
+                settings.set(key, &0usize).unwrap();
+                settings.set("current daily date", &today).unwrap();
+            }
+        }
+    
+        let max_level:usize = settings.get(key).unwrap_or_default();
+        if max_level == 0 {
+            spawn_level.send(SpawnLevelEvent {
+                def: levelset.levels[0].clone(),
+            });
+            return;
+        }
+    
+        // if we get here we must have chosen a set, and already started the set
+        let items = (0..30).map(|i| {
+            ((i+1).to_string(), strs[i], i <= max_level)
+        }).collect();
+    
+        let menu = PopupMenu {
+            heading: format!("{}\nSelect Level", levelset.title), 
+            items,
+            cancel_action: Some("play"),
+            transparent: false,
+            width: 6,
+            header_size: 0.35,
+        };
+    
+        spawn_menu.send(PopupMenuEvent{
+            menu,
+            sender: Entity::from_raw(0),
+        });
     }
 }
+
+
 
 pub fn spawn_in_level_menu(
     mut evs: EventReader<ActionEvent>,
@@ -175,19 +262,21 @@ pub fn spawn_in_level_menu(
                 sender: ev.sender,
                 menu: PopupMenu {
                     heading: format!(
-                        "Paused ({}/{})\n",
-                        set.1 + 1,
-                        set.0.iter().filter(|l| l.is_some()).count()
+                        "Paused ({}/{})\n{}",
+                        set.current_level + 1,
+                        30,
+                        set.title,
                     ),
                     items: vec![
-                        ("Resume".into(), "cancel"),
-                        ("Restart Level".into(), "restart"),
-                        ("Main Menu".into(), "main menu"),
-                        ("Quit to Desktop".into(), "quit"),
+                        ("Resume".into(), "cancel", true),
+                        ("Restart Level".into(), "restart", true),
+                        ("Main Menu".into(), "main menu", true),
+                        ("Quit to Desktop".into(), "quit", true),
                     ],
                     cancel_action: Some("cancel"),
                     transparent: false,
                     header_size: 0.35,
+                    width: 1,
                 },
             })
         }
@@ -214,21 +303,32 @@ pub fn spawn_popup_menu(
             controller.enabled = false;
         }
 
+        let mut action = vec![
+            ("up", ("move up", true), false),
+            ("up", ("pan up", true), true),
+            ("up", ("zoom in", true), false),
+            ("down", ("move down", true), false),
+            ("down", ("pan down", true), true),
+            ("down", ("zoom out", true), false),
+            ("cancel", ("menu", true), false),
+            ("cancel", ("second action", true), true),
+            ("select", ("main action", true), true),
+        ];
+
+        if ev.menu.width > 1 {
+            action.extend(vec![
+                ("left", ("move left", true), false),
+                ("left", ("pan left", true), true),
+                ("right", ("move right", true), false),
+                ("right", ("pan right", true), true),
+            ])
+        }
+
         commands
             .spawn()
             .insert(Controller {
-                action: vec![
-                    ("up", ("move up", true), false),
-                    ("up", ("pan up", true), true),
-                    ("up", ("zoom in", true), false),
-                    ("down", ("move down", true), false),
-                    ("down", ("pan down", true), true),
-                    ("down", ("zoom out", true), false),
-                    ("cancel", ("menu", true), false),
-                    ("cancel", ("second action", true), true),
-                    ("select", ("main action", true), true),
-                ],
                 enabled: true,
+                action,
                 ..Default::default()
             })
             .insert(Position(IVec2::ZERO))
@@ -247,6 +347,8 @@ pub fn spawn_popup_menu(
             false => egui::Rgba::from_rgba_premultiplied(0.0, 0.0, 0.0, 0.8).into(),
         };
 
+        let row_count = (menu.items.len() as f32 / menu.width as f32).ceil() as usize;
+
         egui::CentralPanel::default()
             .frame(egui::Frame {
                 fill,
@@ -258,7 +360,7 @@ pub fn spawn_popup_menu(
                     .size(egui_extras::Size::relative(menu.header_size))
                     .sizes(
                         egui_extras::Size::relative(
-                            (1.0 - 0.1 - menu.header_size - 0.166) / menu.items.len() as f32,
+                            (1.0 - 0.1 - menu.header_size - 0.166) / row_count as f32,
                         ),
                         menu.items.len(),
                     )
@@ -270,20 +372,54 @@ pub fn spawn_popup_menu(
                             ui.vertical_centered(|ui| ui.label(heading));
                         });
 
-                        for (i, (text, _)) in menu.items.iter().enumerate() {
-                            strip.cell(|ui| {
-                                let text = egui::RichText::from(text).size(60.0);
-                                ui.vertical_centered(|ui| {
-                                    if i == *menu_position {
-                                        ui.label(text.background_color(
-                                            egui::Rgba::from_rgba_premultiplied(0.2, 0.2, 0.2, 0.2),
-                                        ));
-                                    } else {
-                                        ui.label(text);
+                        if menu.width == 1 {
+                            for (i, (text, _, enabled)) in menu.items.iter().enumerate() {
+                                strip.cell(|ui| {
+                                    let mut text = egui::RichText::from(text).size(60.0);
+                                    if !enabled {
+                                        text = text.color(egui::Color32::from_rgb(100, 100, 75));
                                     }
+                                    ui.vertical_centered(|ui| {
+                                        if i == *menu_position {
+                                            ui.label(text.background_color(
+                                                egui::Rgba::from_rgba_premultiplied(0.2, 0.2, 0.2, 0.2),
+                                            ));
+                                        } else {
+                                            ui.label(text);
+                                        }
+                                    });
                                 });
-                            });
+                            }
+                        } else {
+                            for i in 0..row_count {
+                                strip.strip(|strip| {
+                                    strip
+                                        .sizes(egui_extras::Size::relative(1.0 / menu.width as f32), menu.width)
+                                        .horizontal(|mut strip| {
+                                            for j in 0..menu.width {
+                                                strip.cell(|ui| {
+                                                    let pos = i * menu.width + j;
+                                                    let (text, _, enabled) = &menu.items[pos];
+                                                    let mut text = egui::RichText::from(text).size(60.0);
+                                                    if !enabled {
+                                                        text = text.color(egui::Color32::from_rgb(100, 100, 75));
+                                                    }
+                                                    ui.vertical_centered(|ui| {
+                                                        if pos == *menu_position {
+                                                            ui.label(text.background_color(
+                                                                egui::Rgba::from_rgba_premultiplied(0.2, 0.2, 0.2, 0.2),
+                                                            ));
+                                                        } else {
+                                                            ui.label(text);
+                                                        }
+                                                    });
+                                                });
+                                            }
+                                        });
+                                })
+                            }
                         }
+
                         strip.empty();
                     });
             });
@@ -294,18 +430,51 @@ pub fn spawn_popup_menu(
     for ev in action_reader.iter(&actions) {
         if menu_items.get(ev.sender).is_ok() {
             match ev.label {
-                "up" => {
-                    if *menu_position == 0 {
-                        *menu_position = active_menu.as_ref().unwrap().0.items.len() - 1;
-                    } else {
-                        *menu_position -= 1;
+                "up" | "left" => {
+                    let active_items = &active_menu.as_ref().unwrap().0.items;
+                    let width = match ev.label {
+                        "up" => active_menu.as_ref().unwrap().0.width,
+                        "left" => 1,
+                        _ => panic!()
+                    };
+                    loop {
+                        if *menu_position < width {
+                            while *menu_position + width < active_items.len() {
+                                *menu_position += width;
+                            }                            
+                        } else {
+                            *menu_position -= width;
+                        }    
+
+                        if active_items[*menu_position].2 // enabled 
+                        {
+                            break;
+                        }
                     }
                     audio.set_playback_rate(1.2);
                     audio.play(asset_server.load("audio/zapsplat_multimedia_alert_mallet_hit_short_single_generic_003_79278.mp3"));
                 }
-                "down" => {
-                    *menu_position =
-                        (*menu_position + 1) % active_menu.as_ref().unwrap().0.items.len();
+                "down" | "right" => {
+                    let active_items = &active_menu.as_ref().unwrap().0.items;
+                    let width = match ev.label {
+                        "down" => active_menu.as_ref().unwrap().0.width,
+                        "right" => 1,
+                        _ => panic!()
+                    };
+                    loop {
+                        if *menu_position + width >= active_items.len() {
+                            while *menu_position >= width {
+                                *menu_position -= width;
+                            }                            
+                        } else {
+                            *menu_position += width;
+                        }    
+
+                        if active_items[*menu_position].2 // enabled 
+                        {
+                            break;
+                        }
+                    }
                     audio.set_playback_rate(1.2);
                     audio.play(asset_server.load("audio/zapsplat_multimedia_alert_mallet_hit_short_single_generic_003_79278.mp3"));
                 }

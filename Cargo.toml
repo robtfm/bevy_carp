@@ -13,3 +13,5 @@ egui_extras = "0.18.0"
 bevy_kira_audio = { path = "../bevy_kira_audio", features=["mp3"] }
 serde = "*"
 serde_json = "*"
+bevy_pkv = "0.5"
+chrono = { version = "0.4", features = ["serde"] }

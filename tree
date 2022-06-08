@@ -266,7 +266,8 @@ bevy_carp v0.1.0 (C:\Users\robfm\Documents\gamedev\simbull\bevy_carp)
 │       │   │   │   │   ├── bevy_app v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_app) (*)
 │       │   │   │   │   ├── bevy_ecs v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_ecs) (*)
 │       │   │   │   │   ├── bevy_math v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_math) (*)
-│       │   │   │   │   └── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   │   │   │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
+│       │   │   │   │   └── serde v1.0.137 (*)
 │       │   │   │   ├── bevy_math v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_math) (*)
 │       │   │   │   ├── bevy_utils v0.8.0-dev (C:\Users\robfm\Documents\gamedev\simbull\bevy\crates\bevy_utils) (*)
 │       │   │   │   └── raw-window-handle v0.4.3
@@ -636,7 +637,9 @@ bevy_carp v0.1.0 (C:\Users\robfm\Documents\gamedev\simbull\bevy_carp)
 │   │   │   └── cache-padded v1.2.0
 │   │   └── symphonia v0.5.0
 │   │       ├── lazy_static v1.4.0
-│   │       ├── symphonia-codec-vorbis v0.5.0
+│   │       ├── symphonia-bundle-mp3 v0.5.0
+│   │       │   ├── bitflags v1.3.2
+│   │       │   ├── lazy_static v1.4.0
 │   │       │   ├── log v0.4.17 (*)
 │   │       │   ├── symphonia-core v0.5.0
 │   │       │   │   ├── arrayvec v0.7.2
@@ -644,14 +647,18 @@ bevy_carp v0.1.0 (C:\Users\robfm\Documents\gamedev\simbull\bevy_carp)
 │   │       │   │   ├── bytemuck v1.9.1 (*)
 │   │       │   │   ├── lazy_static v1.4.0
 │   │       │   │   └── log v0.4.17 (*)
+│   │       │   └── symphonia-metadata v0.5.0
+│   │       │       ├── encoding_rs v0.8.31
+│   │       │       │   └── cfg-if v1.0.0
+│   │       │       ├── lazy_static v1.4.0
+│   │       │       ├── log v0.4.17 (*)
+│   │       │       └── symphonia-core v0.5.0 (*)
+│   │       ├── symphonia-codec-vorbis v0.5.0
+│   │       │   ├── log v0.4.17 (*)
+│   │       │   ├── symphonia-core v0.5.0 (*)
 │   │       │   └── symphonia-utils-xiph v0.5.0
 │   │       │       ├── symphonia-core v0.5.0 (*)
-│   │       │       └── symphonia-metadata v0.5.0
-│   │       │           ├── encoding_rs v0.8.31
-│   │       │           │   └── cfg-if v1.0.0
-│   │       │           ├── lazy_static v1.4.0
-│   │       │           ├── log v0.4.17 (*)
-│   │       │           └── symphonia-core v0.5.0 (*)
+│   │       │       └── symphonia-metadata v0.5.0 (*)
 │   │       ├── symphonia-core v0.5.0 (*)
 │   │       ├── symphonia-format-ogg v0.5.0
 │   │       │   ├── log v0.4.17 (*)
@@ -660,6 +667,49 @@ bevy_carp v0.1.0 (C:\Users\robfm\Documents\gamedev\simbull\bevy_carp)
 │   │       │   └── symphonia-utils-xiph v0.5.0 (*)
 │   │       └── symphonia-metadata v0.5.0 (*)
 │   └── parking_lot v0.11.2 (*)
+├── bevy_pkv v0.5.0
+│   ├── directories v4.0.1
+│   │   └── dirs-sys v0.3.7
+│   │       └── winapi v0.3.9
+│   ├── rmp-serde v1.1.0
+│   │   ├── byteorder v1.4.3
+│   │   ├── rmp v0.8.11
+│   │   │   ├── byteorder v1.4.3
+│   │   │   ├── num-traits v0.2.15 (*)
+│   │   │   └── paste v1.0.7 (proc-macro)
+│   │   └── serde v1.0.137 (*)
+│   ├── serde v1.0.137 (*)
+│   ├── sled v0.34.7
+│   │   ├── crc32fast v1.3.2 (*)
+│   │   ├── crossbeam-epoch v0.9.8
+│   │   │   ├── cfg-if v1.0.0
+│   │   │   ├── crossbeam-utils v0.8.8 (*)
+│   │   │   ├── lazy_static v1.4.0
+│   │   │   ├── memoffset v0.6.5
+│   │   │   │   [build-dependencies]
+│   │   │   │   └── autocfg v1.1.0
+│   │   │   └── scopeguard v1.1.0
+│   │   │   [build-dependencies]
+│   │   │   └── autocfg v1.1.0
+│   │   ├── crossbeam-utils v0.8.8 (*)
+│   │   ├── fs2 v0.4.3
+│   │   │   └── winapi v0.3.9
+│   │   ├── fxhash v0.2.1 (*)
+│   │   ├── libc v0.2.126
+│   │   ├── log v0.4.17 (*)
+│   │   └── parking_lot v0.11.2 (*)
+│   └── thiserror v1.0.31 (*)
+├── chrono v0.4.19
+│   ├── libc v0.2.126
+│   ├── num-integer v0.1.45 (*)
+│   ├── num-traits v0.2.15 (*)
+│   ├── serde v1.0.137 (*)
+│   ├── time v0.1.43
+│   │   ├── libc v0.2.126
+│   │   └── winapi v0.3.9
+│   └── winapi v0.3.9
 ├── egui_extras v0.18.0
 │   └── egui v0.18.1 (*)
-└── rand v0.8.5 (*)
+├── rand v0.8.5 (*)
+├── serde v1.0.137 (*)
+└── serde_json v1.0.81 (*)

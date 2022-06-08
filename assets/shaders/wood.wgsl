@@ -145,7 +145,7 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
         var base = 0.45;
         var size = 10.0;
 
-        var hilight = 0.1;
+        var hilight = 0.2;
         if (material.is_plank == 1u) {
             base = 0.5;
             range = 0.1;
