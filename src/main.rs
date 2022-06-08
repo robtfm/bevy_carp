@@ -707,12 +707,11 @@ fn update_materials(
 
 fn camera_focus(
     mut evs: EventReader<ActionEvent>,
-    mut cam: Query<(&mut Position, &mut PositionZ, &mut Transform, &PerspectiveProjection), (Without<ExtentItem>, Without<Cursor>)>,
+    mut cam: Query<(&mut Position, &mut PositionZ, &PerspectiveProjection), (Without<ExtentItem>, Without<Cursor>)>,
     all: Query<(Entity, &Position, &ExtentItem)>,
-    // cursor: Query<&Transform, With<Cursor>>,
 ) {
     for ev in evs.iter() {
-        if let Ok((mut pos, mut z, mut trans, cam)) = cam.get_mut(ev.sender) {
+        if let Ok((mut pos, mut z, cam)) = cam.get_mut(ev.sender) {
             let mut min_x = i32::MAX;
             let mut max_x = i32::MIN;
             let mut min_y = i32::MAX;
@@ -766,13 +765,8 @@ fn camera_focus(
                     pos.0.y = max_y - y_range;
                 }
             }
-
-            // if let Ok(cursor_trans) = cursor.get_single() {
-            //     *trans = trans.looking_at(cursor_trans.translation, Vec3::Y);
-            // }
         }
     }
-
 }
 
 fn ensure_focus(
@@ -1783,7 +1777,7 @@ fn hammer_home(
                     .insert(new_trans);
                 level.holes.holes.remove(i);
 
-                let max = 1.max(shifted.count() / 2);
+                let max = 2.max(shifted.count() / 2);
                 shifted.shift(hole_pos.0);
 
                 let mut coords = shifted.coords.iter().collect::<Vec<_>>();
