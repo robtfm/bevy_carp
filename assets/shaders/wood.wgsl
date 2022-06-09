@@ -111,7 +111,6 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 
 [[stage(fragment)]]
 fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
-
     var tile_uv = in.uv;
     var texture_uv = in.uv - 0.5;
     var right = vec2<i32>(1, 0);
@@ -200,8 +199,18 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
                     let offset = residual * vec2<f32>(f32(x), f32(y)) - 0.5;
                     let x_ratio = (abs(offset.x) / (abs(offset.x) + abs(offset.y)));
 
-                    var x_noise = noise(texture_uv.x, size, (f32(material_tile.y) + f32(y) * 0.5 + 0.5));
-                    var y_noise = noise(texture_uv.y, size, (f32(material_tile.x) + f32(x) * 0.5 + 0.5));
+                    var x_tile = material_tile.x;
+                    if (x == 1) {
+                        x_tile = x_tile+1;
+                    }
+
+                    var y_tile = material_tile.y;
+                    if (y == 1) {
+                        y_tile = y_tile+1;
+                    }
+
+                    var x_noise = noise(texture_uv.x, size, f32(y_tile));
+                    var y_noise = noise(texture_uv.y, size, f32(x_tile));
                     if (y < 0) { x_noise = 1.0 - x_noise; }
                     if (x < 0) { y_noise = 1.0 - y_noise; }
 

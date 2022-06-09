@@ -29,8 +29,8 @@ use bevy_pkv::PkvStore;
 use input::{Controller, InputPlugin};
 use menus::{spawn_in_level_menu, spawn_main_menu, spawn_play_menu, spawn_popup_menu};
 use rand::{
-    prelude::{SliceRandom, StdRng},
-    thread_rng, Rng, SeedableRng, RngCore,
+    prelude::SliceRandom,
+    thread_rng, Rng, SeedableRng, 
 };
 
 use bevy::{
@@ -61,6 +61,7 @@ mod background;
 
 use bl_quad::BLQuad;
 use model::*;
+use rand_pcg::Pcg32;
 use serde::{Serialize, Deserialize};
 use shader::SimpleTextureMaterial;
 use structs::{
@@ -69,7 +70,7 @@ use structs::{
 };
 use wood_material::{WoodMaterial, WoodMaterialPlugin, WoodMaterialSpec};
 
-use crate::{structs::{PopupMenu, Position, SwooshChannel, CutChannel}, background::BackgroundPlugin};
+use crate::{structs::{PopupMenu, Position, SwooshChannel, CutChannel}, background::BackgroundPlugin, menus::spawn_credits};
 
 #[derive(Serialize, Deserialize)]
 enum WindowModeSerial {
@@ -165,6 +166,7 @@ fn main() {
         .add_system_to_stage(CoreStage::PostUpdate, spawn_main_menu.after(camera_focus)) // despawns, must run after cam focus so the entities are spawned to focus on
         .add_system(spawn_play_menu)
         .add_system(spawn_in_level_menu)
+        .add_system(spawn_credits)
         .add_system(spawn_popup_menu)
         // setup level
         .add_system(setup_level) // generate the level from the def
@@ -292,29 +294,33 @@ fn spawn_random(
     total: usize,
     skip: usize,
     title: String,
-    seed: Option<u64>,
+    seed: u64,
     key: &'static str,
 ) -> LevelSet {
-    let mut rng: Box<dyn RngCore> = match seed {
-        Some(s) => Box::new(StdRng::seed_from_u64(s)),
-        None => Box::new(thread_rng())
-    };
+    let mut rng = Pcg32::seed_from_u64(seed);
 
     let mut defs = (0..total)
         .map(|_| {
-            let seed = rng.gen();
-            let num_holes = rng.gen_range(2..15);
-            let total_blocks = rng.gen_range(0..7) + num_holes * rng.gen_range(3..9);
+            let numbers = (
+                rng.gen::<u64>(),
+                rng.gen_range::<u64, _>(2..15),
+                rng.gen_range::<u64, _>(0..7),
+                rng.gen_range::<u64, _>(3..9),
+            );
+        
+            let seed = numbers.0;
+            let num_holes = numbers.1;
+            let total_blocks = numbers.2 + num_holes * numbers.3;
             LevelDef {
-                num_holes,
-                total_blocks,
+                num_holes: num_holes as usize,
+                total_blocks: total_blocks as usize,
                 seed,
             }
         })
         .collect::<Vec<_>>();
 
     defs.sort_by_key(|def| {
-        let mut rng = StdRng::seed_from_u64(def.seed);
+        let mut rng = Pcg32::seed_from_u64(def.seed);
         let holes = gen_holes(def.num_holes, def.total_blocks, &mut rng);
         let plank = Plank::from_holes(&holes, &mut rng);
         let level = Level {
@@ -349,7 +355,7 @@ fn setup_level(
     mut bg: EventWriter<ChangeBackground>,
 ) {
     for ev in spawn_evs.iter() {
-        let mut rng = StdRng::seed_from_u64(ev.def.seed);
+        let mut rng = Pcg32::seed_from_u64(ev.def.seed);
         let mut holes = gen_holes(ev.def.num_holes, ev.def.total_blocks, &mut rng);
         holes
             .holes
@@ -1129,7 +1135,6 @@ fn cut_plank(
                         debug!("base");
                         debug_plank_mats(&base_plank.0);
 
-                        // let mut rng = thread_rng();
                         let planks = cut.split(&base_plank.0).unwrap();
                         commands.entity(selected_ent).despawn_recursive();
 

@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 use bevy::utils::HashSet;
 use rand::{
-    prelude::{SliceRandom, StdRng},
-    Rng,
+    prelude::{SliceRandom},
+    Rng, RngCore,
 };
 
 use crate::structs::{Position, PositionZ};
@@ -268,7 +268,7 @@ pub struct Holes {
 }
 
 impl Plank {
-    pub fn from_holes(holes: &Holes, mut rng: &mut StdRng) -> Self {
+    pub fn from_holes(holes: &Holes, mut rng: &mut (impl RngCore + ?Sized)) -> Self {
         let mut indexes = (0..holes.holes.len()).collect::<Vec<_>>();
         indexes.shuffle(&mut rng);
 
@@ -281,27 +281,27 @@ impl Plank {
             plank = plank.attach_hole(&holes.holes[indexes[i]], &mut rng);
         }
 
-        for _ in 0..rng.gen_range(0..4) {
+        for _ in 0..rng.gen_range::<u64, _>(0..4) {
             plank.rotate();
         }
 
-        plank.texture_offset = IVec2::new(rng.gen_range(0..1000), rng.gen_range(0..1000));
+        plank.texture_offset = IVec2::new(rng.gen_range::<i32, _>(0..1000), rng.gen_range::<i32, _>(0..1000));
         plank.normalize()
     }
 
-    fn attach_hole(mut self, hole: &Hole, rng: &mut StdRng) -> Self {
+    fn attach_hole(mut self, hole: &Hole, rng: &mut impl RngCore) -> Self {
         let mut hole = hole.clone();
-        for _ in 0..rng.gen_range(0..4) {
+        for _ in 0..rng.gen_range::<u64, _>(0..4) {
             hole.rotate();
         }
 
-        for _ in 0..rng.gen_range(0..4) {
+        for _ in 0..rng.gen_range::<u64, _>(0..4) {
             self.rotate();
         }
 
         let y_shift_range = (self.extents().1 .0 - hole.extents().1 .1)
             ..=(self.extents().1 .1 - hole.extents().1 .0);
-        let y_shift = rng.gen_range(y_shift_range.clone());
+        let y_shift = rng.gen_range::<i32, _>(y_shift_range.clone());
 
         hole.shift(IVec2::new(
             self.extents().0 .0 - hole.extents().0 .1 - 1,
@@ -327,11 +327,11 @@ impl Plank {
     }
 }
 
-pub fn gen_hole(size: usize, rng: &mut StdRng) -> Hole {
+pub fn gen_hole(size: usize, rng: &mut impl RngCore) -> Hole {
     let mut hole = Hole {
         coords: HashSet::from_iter(std::iter::once(IVec2::ZERO)),
         turns: 0,
-        texture_offset: IVec2::new(rng.gen_range(0..1000), rng.gen_range(0..1000)),
+        texture_offset: IVec2::new(rng.gen_range::<i32, _>(0..1000), rng.gen_range::<i32, _>(0..1000)),
     };
 
     for _ in 1..size {
@@ -339,8 +339,8 @@ pub fn gen_hole(size: usize, rng: &mut StdRng) -> Hole {
 
         loop {
             let next = IVec2::new(
-                rng.gen_range(extents.0 .0 - 1..=extents.0 .1 + 1),
-                rng.gen_range(extents.1 .0 - 1..=extents.1 .1 + 1),
+                rng.gen_range::<i32, _>(extents.0 .0 - 1..=extents.0 .1 + 1),
+                rng.gen_range::<i32, _>(extents.1 .0 - 1..=extents.1 .1 + 1),
             );
             if !hole.contains(next) {
                 // valid coord, check if attached
@@ -359,7 +359,7 @@ pub fn gen_hole(size: usize, rng: &mut StdRng) -> Hole {
     hole
 }
 
-pub fn gen_holes(mut count: usize, total: usize, mut rng: &mut StdRng) -> Holes {
+pub fn gen_holes(mut count: usize, total: usize, mut rng: &mut (impl RngCore + ?Sized)) -> Holes {
     let mut remainder = total;
 
     let avg = total as f32 / count as f32;
@@ -377,10 +377,10 @@ pub fn gen_holes(mut count: usize, total: usize, mut rng: &mut StdRng) -> Holes 
         let small = smallest.max(remainder - (count * largest).min(remainder));
         let large = largest.min(remainder - (count * smallest).min(remainder));
         debug!("remaining: {}, piece: [{},{}]", remainder, small, large);
-        let size = rng.gen_range(small..=large);
+        let size = rng.gen_range::<u64, _>(small as u64..=large as u64);
         debug!(" -> {}", size);
-        holes.push(gen_hole(size, &mut rng).normalize());
-        remainder -= size;
+        holes.push(gen_hole(size as usize, &mut rng).normalize());
+        remainder -= size as usize;
     }
 
     Holes { holes }

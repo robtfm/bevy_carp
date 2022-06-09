@@ -1,7 +1,6 @@
 use bevy::{
     ecs::event::{Events, ManualEventReader},
     prelude::*,
-    render::texture::{CompressedImageFormats, ImageType},
     utils::HashMap,
 };
 use bevy_egui::{egui, EguiContext};
@@ -28,6 +27,9 @@ pub(crate) fn spawn_main_menu(
     mut spawn_planks: EventWriter<SpawnPlank>,
     mut popup: EventWriter<PopupMenuEvent>,
     mut bg: EventWriter<ChangeBackground>,
+    images: Res<Assets<Image>>,
+    server: Res<AssetServer>,
+    mut handle: Local<Option<Handle<Image>>>,
 ) {
     let mut run = false;
 
@@ -41,21 +43,26 @@ pub(crate) fn spawn_main_menu(
         return;
     }
 
+    let handle = handle.get_or_insert_with(||
+        server.load("title.png")
+    );
+
+    let Some(image) = images.get(&*handle) else {
+        // try again next time
+        actions.send(ActionEvent{
+            sender: Entity::from_raw(0),
+            label: "main menu",
+            target: None,
+        });
+        return;
+    };
+
     for ent in all.iter() {
         // even permanents
         commands.entity(ent).despawn_recursive();
     }
 
     bg.send_default();
-
-    let bytes = std::fs::read("assets/title.png").unwrap();
-    let image = Image::from_buffer(
-        &bytes,
-        ImageType::Extension("png"),
-        CompressedImageFormats::all(),
-        false,
-    )
-    .unwrap();
 
     let mut plank = CoordSet::default();
     let width = image.size().x as usize;
@@ -104,8 +111,8 @@ pub(crate) fn spawn_main_menu(
             heading: "".into(),
             items: vec![
                 ("Play".into(), "play", true),
-                ("Options".into(), "options", false),
-                ("Credits".into(), "credits", false),
+                ("Options (tbd)".into(), "options", false),
+                ("Credits".into(), "credits", true),
                 ("Quit to Desktop".into(), "quit", true),
             ],
             cancel_action: None,
@@ -115,6 +122,82 @@ pub(crate) fn spawn_main_menu(
         },
         sound: false,
     });
+}
+
+pub fn spawn_credits(
+    mut ev: EventReader<ActionEvent>,
+    mut menu: EventWriter<PopupMenuEvent>,
+) {
+    for ev in ev.iter() {
+        if ev.label == "credits" {
+            menu.send(PopupMenuEvent {
+                sender: Entity::from_raw(0),
+                menu: PopupMenu {
+                    heading: "".into(),
+                    items: vec![
+                        ("".into(), "", false),
+                        ("Measure".into(), "", false),
+                        ("".into(), "", false),
+                        ("by".into(), "", false),
+                        ("".into(), "", false),
+
+                        ("".into(), "", false),
+                        ("Once".into(), "", false),
+                        ("".into(), "", false),
+                        ("robtfm".into(), "", false),
+                        ("".into(), "", false),
+
+                        ("".into(), "", false),
+                        ("".into(), "", false),
+                        ("".into(), "", false),
+                        ("".into(), "", false),
+                        ("".into(), "", false),
+
+                        ("".into(), "", false),
+                        ("built".into(), "", false),
+                        ("".into(), "", false),
+                        ("bevy".into(), "", false),
+                        ("".into(), "", false),
+
+                        ("".into(), "", false),
+                        ("using".into(), "", false),
+                        ("".into(), "", false),
+                        ("kira".into(), "", false),
+                        ("".into(), "", false),
+
+                        ("".into(), "", false),
+                        ("".into(), "", false),
+                        ("".into(), "", false),
+                        ("egui".into(), "", false),
+                        ("".into(), "", false),
+
+                        ("".into(), "", false),
+                        ("".into(), "", false),
+                        ("".into(), "", false),
+                        ("".into(), "", false),
+                        ("".into(), "", false),
+
+                        ("".into(), "", false),
+                        ("SFX".into(), "", false),
+                        ("".into(), "", false),
+                        ("zapsplat".into(), "", false),
+                        ("".into(), "", false),
+
+                        ("".into(), "", false),
+                        ("".into(), "", false),
+                        ("Ok".into(), "main menu", true),
+                        ("".into(), "", false),
+                        ("".into(), "", false),
+                    ],
+                    cancel_action: Some("main menu"),
+                    transparent: false,
+                    header_size: 0.0,
+                    width: 5,
+                },
+                sound: false,
+            });
+        }
+    }
 }
 
 pub fn spawn_play_menu(
@@ -169,21 +252,21 @@ pub fn spawn_play_menu(
             }
             "play easy" => {
                 key = "Easy";
-                *levelset = spawn_random(90, 0, "Easy Set".into(), Some(15), key);
+                *levelset = spawn_random(90, 0, "Easy Set".into(), 25, key);
             }
             "play medium" => {
                 key = "Medium";
-                *levelset = spawn_random(90, 30, "Medium Set".into(), Some(15), key);
+                *levelset = spawn_random(90, 30, "Medium Set".into(), 15, key);
             }
             "play hard" => {
                 key = "Hard";
-                *levelset = spawn_random(90, 60, "Hard Set".into(), Some(15), key);
+                *levelset = spawn_random(90, 60, "Hard Set".into(), 15, key);
             }
             "play daily" => {
                 let dur = today.signed_duration_since(start_date);
                 let seed = dur.num_days() * 1068;
                 key = "Daily";
-                *levelset = spawn_random(30, 0, format!("Daily Set for {}", today), Some(seed as u64), key);
+                *levelset = spawn_random(30, 0, format!("Daily Set for {}", today), seed as u64, key);
             }
             _ => return,
         }
@@ -329,6 +412,10 @@ pub fn spawn_popup_menu(
 
         *active_menu = Some((ev.menu.clone(), ev.sender));
         *menu_position = 0;
+
+        while !ev.menu.items[*menu_position].2 {
+            *menu_position += 1;
+        }
     }
 
     if let Some((menu, _)) = active_menu.as_ref() {
