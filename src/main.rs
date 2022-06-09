@@ -8,9 +8,9 @@
 // proper title page
 // background
 // improve cutter
+// more sfx
 
 //tbd
-// more sfx
 // music
 // credits
 // options (inc keys)
@@ -57,6 +57,7 @@ mod model;
 mod shader;
 mod structs;
 mod wood_material;
+mod background;
 
 use bl_quad::BLQuad;
 use model::*;
@@ -64,11 +65,11 @@ use serde::{Serialize, Deserialize};
 use shader::SimpleTextureMaterial;
 use structs::{
     ActionEvent, GrabDropChannel, HammerChannel, LevelDef, MenuChannel, PopupMenuEvent, PositionZ,
-    SpawnLevelEvent, UndoChannel,
+    SpawnLevelEvent, UndoChannel, Permanent, ChangeBackground
 };
 use wood_material::{WoodMaterial, WoodMaterialPlugin, WoodMaterialSpec};
 
-use crate::structs::{PopupMenu, Position, SwooshChannel, CutChannel};
+use crate::{structs::{PopupMenu, Position, SwooshChannel, CutChannel}, background::BackgroundPlugin};
 
 #[derive(Serialize, Deserialize)]
 enum WindowModeSerial {
@@ -130,6 +131,7 @@ fn main() {
         .add_plugin(EguiPlugin)
         .add_plugin(AudioPlugin)
         .add_plugin(InputPlugin)
+        .add_plugin(BackgroundPlugin)
         .add_audio_channel::<MenuChannel>()
         .add_audio_channel::<GrabDropChannel>()
         .add_audio_channel::<SwooshChannel>()
@@ -201,9 +203,6 @@ struct ResetEvent {
     camera_pos: Option<(Position, PositionZ)>,
     camera_trans: Option<Transform>,
 }
-
-#[derive(Component)]
-struct Permanent;
 
 fn splash(mut evs: EventWriter<ActionEvent>) {
     evs.send(ActionEvent {
@@ -347,6 +346,7 @@ fn setup_level(
     mut def: ResMut<LevelDef>,
     mut action_evs: EventWriter<ActionEvent>,
     mut commands: Commands,
+    mut bg: EventWriter<ChangeBackground>,
 ) {
     for ev in spawn_evs.iter() {
         let mut rng = StdRng::seed_from_u64(ev.def.seed);
@@ -411,6 +411,8 @@ fn setup_level(
         });
         commands.insert_resource(UndoBuffer::new(base.0.clone()));
         commands.insert_resource(DonePlanks::default());
+
+        bg.send_default();
     }
 }
 
@@ -1839,7 +1841,9 @@ fn hammer_home(
                 if level.holes.holes.is_empty() {
                     debug!("you win!");
 
-                    settings.set(levelset.settings_key, &29usize.min(levelset.current_level + 1)).unwrap();
+                    if let Ok(current) = settings.get(levelset.settings_key) {
+                        settings.set(levelset.settings_key, &29usize.min(levelset.current_level + 1).max(current)).unwrap();
+                    }
 
                     let mut items = vec![
                         ("Restart Level".into(), "restart", true),

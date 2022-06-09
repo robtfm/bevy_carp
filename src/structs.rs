@@ -51,3 +51,10 @@ pub struct PopupMenuEvent {
 
 #[derive(Component)]
 pub struct MenuItem;
+
+#[derive(Component)]
+pub struct Permanent;
+
+#[derive(Default)]
+pub struct ChangeBackground;
+

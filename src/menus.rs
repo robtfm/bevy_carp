@@ -8,13 +8,12 @@ use bevy_egui::{egui, EguiContext};
 use bevy_kira_audio::AudioChannel;
 use bevy_pkv::PkvStore;
 use egui_extras::StripBuilder;
-use rand::{thread_rng, Rng};
 
 use crate::{
     input::Controller,
     model::{CoordSet, LevelBase},
     spawn_random,
-    structs::{ActionEvent, MenuItem, PopupMenu, PopupMenuEvent, Position, PositionZ},
+    structs::{ActionEvent, MenuItem, PopupMenu, PopupMenuEvent, Position, PositionZ, ChangeBackground},
     LevelDef, LevelSet, MenuChannel, Permanent, SpawnLevelEvent, SpawnPlank,
 };
 
@@ -28,9 +27,7 @@ pub(crate) fn spawn_main_menu(
     all: Query<Entity>,
     mut spawn_planks: EventWriter<SpawnPlank>,
     mut popup: EventWriter<PopupMenuEvent>,
-    mut mats: ResMut<Assets<StandardMaterial>>,
-    server: Res<AssetServer>,
-    mut meshes: ResMut<Assets<Mesh>>,
+    mut bg: EventWriter<ChangeBackground>,
 ) {
     let mut run = false;
 
@@ -49,23 +46,7 @@ pub(crate) fn spawn_main_menu(
         commands.entity(ent).despawn_recursive();
     }
 
-    // background
-    let mut rng = thread_rng();
-    let id = rng.gen_range(1..=3);
-    let file = format!("lumber edit{}.png", id);
-
-    let mat = StandardMaterial {
-        base_color_texture: Some(server.load(&file)),
-        unlit: true,
-        ..Default::default()
-    };
-
-    commands.spawn_bundle(PbrBundle{
-        mesh: meshes.add(shape::Quad::new(Vec2::new(950.0,500.0)).into()),
-        material: mats.add(mat),
-        transform: Transform::from_xyz(0.0, 0.0, -500.0),
-        ..Default::default()
-    }).insert(Permanent);
+    bg.send_default();
 
     let bytes = std::fs::read("assets/title.png").unwrap();
     let image = Image::from_buffer(
