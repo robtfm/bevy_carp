@@ -132,6 +132,7 @@ pub(crate) fn spawn_main_menu(
             header_size: 0.4,
             width: 1,
         },
+        sound: false,
     });
 }
 
@@ -181,6 +182,7 @@ pub fn spawn_play_menu(
                         header_size: 0.35,
                         width: 1,
                     },
+                    sound: false,
                 });
                 return;
             }
@@ -238,6 +240,7 @@ pub fn spawn_play_menu(
         spawn_menu.send(PopupMenuEvent{
             menu,
             sender: Entity::from_raw(0),
+            sound: false,
         });
     }
 }
@@ -278,6 +281,7 @@ pub fn spawn_in_level_menu(
                     header_size: 0.35,
                     width: 1,
                 },
+                sound: true,
             })
         }
     }
@@ -298,6 +302,11 @@ pub fn spawn_popup_menu(
     audio: Res<AudioChannel<MenuChannel>>,
 ) {
     for ev in spawn_evs.iter() {
+        if ev.sound {
+            audio.set_playback_rate(1.2);
+            audio.play(asset_server.load("audio/zapsplat_multimedia_game_sound_game_show_correct_tone_bright_positive_006_80747.mp3"));
+        }
+
         for (ent, mut controller) in other_controllers.iter_mut() {
             prev_controller_state.insert(ent, controller.enabled);
             controller.enabled = false;

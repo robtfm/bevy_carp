@@ -28,7 +28,9 @@ pub struct SpawnLevelEvent {
 pub struct MenuChannel;
 pub struct GrabDropChannel;
 pub struct HammerChannel;
-
+pub struct SwooshChannel;
+pub struct CutChannel;
+pub struct UndoChannel;
 //menus
 
 #[derive(Clone)]
@@ -44,6 +46,7 @@ pub struct PopupMenu {
 pub struct PopupMenuEvent {
     pub sender: Entity,
     pub menu: PopupMenu,
+    pub sound: bool,
 }
 
 #[derive(Component)]

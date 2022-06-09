@@ -64,11 +64,11 @@ use serde::{Serialize, Deserialize};
 use shader::SimpleTextureMaterial;
 use structs::{
     ActionEvent, GrabDropChannel, HammerChannel, LevelDef, MenuChannel, PopupMenuEvent, PositionZ,
-    SpawnLevelEvent,
+    SpawnLevelEvent, UndoChannel,
 };
 use wood_material::{WoodMaterial, WoodMaterialPlugin, WoodMaterialSpec};
 
-use crate::structs::{PopupMenu, Position};
+use crate::structs::{PopupMenu, Position, SwooshChannel, CutChannel};
 
 #[derive(Serialize, Deserialize)]
 enum WindowModeSerial {
@@ -132,7 +132,10 @@ fn main() {
         .add_plugin(InputPlugin)
         .add_audio_channel::<MenuChannel>()
         .add_audio_channel::<GrabDropChannel>()
+        .add_audio_channel::<SwooshChannel>()
         .add_audio_channel::<HammerChannel>()
+        .add_audio_channel::<CutChannel>()        
+        .add_audio_channel::<UndoChannel>()        
         .init_resource::<Level>()
         .init_resource::<DonePlanks>()
         .init_resource::<LevelDef>()
@@ -711,58 +714,60 @@ fn camera_focus(
     all: Query<(Entity, &Position, &ExtentItem)>,
 ) {
     for ev in evs.iter() {
-        if let Ok((mut pos, mut z, cam)) = cam.get_mut(ev.sender) {
-            let mut min_x = i32::MAX;
-            let mut max_x = i32::MIN;
-            let mut min_y = i32::MAX;
-            let mut max_y = i32::MIN;
-            let mut count = 0;
-
-            for (_, pos, extent) in all
-                .iter()
-                .filter(|(e, ..)| ev.target.is_none() || ev.target.as_ref().unwrap() == e)
-            {
-                min_x = i32::min(min_x, pos.0.x + extent.0.x);
-                max_x = i32::max(max_x, pos.0.x + extent.1.x);
-                min_y = i32::min(min_y, pos.0.y + extent.0.y);
-                max_y = i32::max(max_y, pos.0.y + extent.1.y);
-                count += 1;
-            }
-
-            if count > 0 {
-                min_x -= 1;
-                max_x += 2;
-                min_y -= 1;
-                max_y += 2;
-
-                let x_scale = 1.0 * cam.aspect_ratio;
-                let y_scale = 1.0;
-                let z_scale = 0.4;
-
-                let target_z = (f32::max(
-                    (max_x - min_x) as f32 / x_scale,
-                    (max_y - min_y) as f32 * y_scale,
-                ) / (2.0 * z_scale))
-                    .ceil() as i32;
-
-                if target_z > z.0 {
-                    z.0 = target_z;
+        if ev.label == "focus" {
+            if let Ok((mut pos, mut z, cam)) = cam.get_mut(ev.sender) {
+                let mut min_x = i32::MAX;
+                let mut max_x = i32::MIN;
+                let mut min_y = i32::MAX;
+                let mut max_y = i32::MIN;
+                let mut count = 0;
+    
+                for (_, pos, extent) in all
+                    .iter()
+                    .filter(|(e, ..)| ev.target.is_none() || ev.target.as_ref().unwrap() == e)
+                {
+                    min_x = i32::min(min_x, pos.0.x + extent.0.x);
+                    max_x = i32::max(max_x, pos.0.x + extent.1.x);
+                    min_y = i32::min(min_y, pos.0.y + extent.0.y);
+                    max_y = i32::max(max_y, pos.0.y + extent.1.y);
+                    count += 1;
                 }
-
-                let x_range = (z.0 as f32 * x_scale * z_scale) as i32;
-                let y_range = (z.0 as f32 * y_scale * z_scale) as i32;
-
-                if min_x < pos.0.x - x_range {
-                    pos.0.x = min_x + x_range;
-                }
-                if max_x > pos.0.x + x_range {
-                    pos.0.x = max_x - x_range;
-                }
-                if min_y < pos.0.y - y_range {
-                    pos.0.y = min_y + y_range;
-                }
-                if max_y > pos.0.y + y_range {
-                    pos.0.y = max_y - y_range;
+    
+                if count > 0 {
+                    min_x -= 1;
+                    max_x += 2;
+                    min_y -= 1;
+                    max_y += 2;
+    
+                    let x_scale = 1.0 * cam.aspect_ratio;
+                    let y_scale = 1.0;
+                    let z_scale = 0.4;
+    
+                    let target_z = (f32::max(
+                        (max_x - min_x) as f32 / x_scale,
+                        (max_y - min_y) as f32 * y_scale,
+                    ) / (2.0 * z_scale))
+                        .ceil() as i32;
+    
+                    if target_z > z.0 {
+                        z.0 = target_z;
+                    }
+    
+                    let x_range = (z.0 as f32 * x_scale * z_scale) as i32;
+                    let y_range = (z.0 as f32 * y_scale * z_scale) as i32;
+    
+                    if min_x < pos.0.x - x_range {
+                        pos.0.x = min_x + x_range;
+                    }
+                    if max_x > pos.0.x + x_range {
+                        pos.0.x = max_x - x_range;
+                    }
+                    if min_y < pos.0.y - y_range {
+                        pos.0.y = min_y + y_range;
+                    }
+                    if max_y > pos.0.y + y_range {
+                        pos.0.y = max_y - y_range;
+                    }
                 }
             }
         }
@@ -859,6 +864,8 @@ fn rotate_plank(
         With<PlankComponent>,
     >,
     mut material_nodes: Query<&mut Transform, (Without<PlankComponent>, Without<Cursor>)>,
+    asset_server: Res<AssetServer>,
+    audio: Res<AudioChannel<SwooshChannel>>,
 ) {
     for ev in ev.iter() {
         let dir = match ev.label {
@@ -912,6 +919,8 @@ fn rotate_plank(
                 .entity(ent)
                 .insert(RotateAround(cur_pos.0 - plank_pos.0))
                 .insert(extentitem);
+
+            audio.play(asset_server.load("audio/zapsplat_foley_wood_bambo_swoosh_through_air_001-[AudioTrimmer.com](1).mp3"));
         }
     }
 }
@@ -1237,6 +1246,8 @@ fn change_state(
     mut camera: Query<(&Transform, &mut Position, &mut PositionZ), With<Camera>>,
     mut reset: EventWriter<ResetEvent>,
     to_drop: Query<Entity, With<Selected>>,
+    asset_server: Res<AssetServer>,
+    audio: Res<AudioChannel<UndoChannel>>,
 ) {
     let Ok((&cursor_trans, mut cursor_pos)) = cursor.get_single_mut() else { return };
     let Ok((&camera_trans, mut camera_pos, mut camera_pos_z)) = camera.get_single_mut() else { return };
@@ -1252,27 +1263,33 @@ fn change_state(
 
                 let current_is_action = undo.current_state().is_action;
 
+                if let Ok(ent) = to_drop.get_single() {
+                    commands.entity(ent).remove::<Selected>().remove::<Controller>();
+                    audio.play(asset_server.load("audio/zapsplat_multimedia_pop_up_tone_short_011_78863.mp3"),);
+                    return;
+                }
+
                 if let Some(state) = undo.prev() {
+                    audio.play(asset_server.load("audio/zapsplat_sport_surfboard_leash_velcro_strap_undo_003.mp3"));
+
                     if current_is_action && *cursor_pos != state.cursor {
                         debug!("repos");
                         *cursor_pos = state.cursor;
                         *camera_pos = state.camera.0;
                         *camera_pos_z = state.camera.1;
-                        if let Ok(ent) = to_drop.get_single() {
-                            commands.entity(ent).remove::<Selected>().remove::<Controller>();
-                        }
-                    } else {
-                        debug!("act");
-                        *level = state.level.clone();
-                        done_planks.0 = state.done_planks.clone();
-                        reset.send(ResetEvent {
-                            cursor_pos: Some(state.cursor),
-                            camera_pos: Some(state.camera),
-                            cursor_trans: Some(cursor_trans),
-                            camera_trans: Some(camera_trans),
-                        });
-                        undo.move_back();
-                    }
+                        return;
+                    } 
+                    
+                    debug!("act");
+                    *level = state.level.clone();
+                    done_planks.0 = state.done_planks.clone();
+                    reset.send(ResetEvent {
+                        cursor_pos: Some(state.cursor),
+                        camera_pos: Some(state.camera),
+                        cursor_trans: Some(cursor_trans),
+                        camera_trans: Some(camera_trans),
+                    });
+                    undo.move_back();
                 }
             }
             "redo" => {
@@ -1282,27 +1299,32 @@ fn change_state(
                     undo.has_back()
                 );
 
+                if let Ok(ent) = to_drop.get_single() {
+                    commands.entity(ent).remove::<Selected>().remove::<Controller>();
+                    audio.play(asset_server.load("audio/zapsplat_multimedia_pop_up_tone_short_011_78863.mp3"),);
+                    return;
+                }
+
                 if let Some(state) = undo.next() {
+                    audio.play(asset_server.load("audio/zapsplat_sport_surfboard_leash_velcro_strap_undo_004.mp3"));
                     if state.is_action && *cursor_pos != state.cursor {
                         debug!("repos");
                         *cursor_pos = state.cursor;
                         *camera_pos = state.camera.0;
                         *camera_pos_z = state.camera.1;
-                        if let Ok(ent) = to_drop.get_single() {
-                            commands.entity(ent).remove::<Selected>().remove::<Controller>();
-                        }
-                    } else {
-                        debug!("{} planks in forward", state.level.planks.len());
-                        *level = state.level.clone();
-                        done_planks.0 = state.done_planks.clone();
-                        reset.send(ResetEvent {
-                            cursor_pos: Some(state.cursor),
-                            camera_pos: Some(state.camera),
-                            cursor_trans: Some(cursor_trans),
-                            camera_trans: Some(camera_trans),
-                        });
-                        undo.move_forward();
-                    }
+                        return;
+                    } 
+                    
+                    debug!("{} planks in forward", state.level.planks.len());
+                    *level = state.level.clone();
+                    done_planks.0 = state.done_planks.clone();
+                    reset.send(ResetEvent {
+                        cursor_pos: Some(state.cursor),
+                        camera_pos: Some(state.camera),
+                        cursor_trans: Some(cursor_trans),
+                        camera_trans: Some(camera_trans),
+                    });
+                    undo.move_forward();
                 }
             }
             _ => (),
@@ -1489,6 +1511,9 @@ fn animate_cuts(
     mut meshes: ResMut<Assets<Mesh>>,
     mut mats: ResMut<Assets<StandardMaterial>>,
     mut data: Local<Option<(Handle<Mesh>, Handle<StandardMaterial>)>>,
+    mut prev_cutting: Local<Option<f64>>,
+    asset_server: Res<AssetServer>,
+    audio: Res<AudioChannel<CutChannel>>,
 ) {
     let (mesh, mat) = data.get_or_insert_with(|| {
         (
@@ -1502,6 +1527,15 @@ fn animate_cuts(
         )
     });
 
+    if !cuts.is_empty() {
+        if prev_cutting.is_none() {
+            println!("begin sound");
+            audio.set_playback_rate(0.5);
+            audio.set_volume(0.7);
+            audio.play_looped(asset_server.load("audio/zapsplat_office_compass_pencil_draw_circle_on_paper_003_22758-[AudioTrimmer.com].mp3"));
+        }
+        *prev_cutting = Some(time.seconds_since_startup());
+    }
     for (ent, cut, mut trans) in cuts.iter_mut() {
         let perc = f32::min(1.0, ((time.seconds_since_startup() - cut.start) * cut.speed as f64) as f32);
         let end = cut.from + (cut.to - cut.from) * perc;
@@ -1547,6 +1581,14 @@ fn animate_cuts(
                 .insert(Die(time.seconds_since_startup() + rng.gen_range(0.0..0.1)));
 
             *spawn_time = time.seconds_since_startup();
+        }
+    }
+
+    if let Some(end_time) = *prev_cutting {
+        if time.seconds_since_startup() > end_time + 0.25 {
+            println!("end sound");
+            audio.stop();
+            *prev_cutting = None;
         }
     }
 }
@@ -1822,6 +1864,7 @@ fn hammer_home(
                             header_size: 0.35,
                             width: 1,
                         },
+                        sound: true,
                     });
                 } else {
                     snap.send_default();
