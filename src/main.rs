@@ -71,7 +71,7 @@ use wood_material::{WoodMaterial, WoodMaterialPlugin, WoodMaterialSpec};
 use crate::{
     background::BackgroundPlugin,
     menus::spawn_credits,
-    structs::{CutChannel, PopupMenu, Position, SwooshChannel},
+    structs::{CutChannel, PopupMenu, Position, SwooshChannel, QUIT_TO_DESKTOP},
 };
 
 #[derive(Serialize, Deserialize)]
@@ -1931,7 +1931,7 @@ fn hammer_home(
                     let mut items = vec![
                         ("Restart Level".into(), "restart", true),
                         ("Main Menu".into(), "main menu", true),
-                        ("Quit to Desktop".into(), "quit", true),
+                        ("Quit to Desktop".into(), "quit", QUIT_TO_DESKTOP),
                     ];
 
                     let next = levelset.current_level + 1;

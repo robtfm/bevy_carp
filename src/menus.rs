@@ -13,7 +13,7 @@ use crate::{
     model::{CoordSet, LevelBase},
     spawn_random,
     structs::{
-        ActionEvent, ChangeBackground, MenuItem, PopupMenu, PopupMenuEvent, Position, PositionZ,
+        ActionEvent, ChangeBackground, MenuItem, PopupMenu, PopupMenuEvent, Position, PositionZ, QUIT_TO_DESKTOP,
     },
     LevelDef, LevelSet, MenuChannel, Permanent, SpawnLevelEvent, SpawnPlank,
 };
@@ -113,7 +113,7 @@ pub(crate) fn spawn_main_menu(
                 ("Play".into(), "play", true),
                 ("Options (tbd)".into(), "options", false),
                 ("Credits".into(), "credits", true),
-                ("Quit to Desktop".into(), "quit", true),
+                ("Quit to Desktop".into(), "quit", QUIT_TO_DESKTOP),
             ],
             cancel_action: None,
             transparent: true,
@@ -320,7 +320,7 @@ pub fn spawn_in_level_menu(
                         ("Resume".into(), "cancel", true),
                         ("Restart Level".into(), "restart", true),
                         ("Main Menu".into(), "main menu", true),
-                        ("Quit to Desktop".into(), "quit", true),
+                        ("Quit to Desktop".into(), "quit", QUIT_TO_DESKTOP),
                     ],
                     cancel_action: Some("cancel"),
                     transparent: false,

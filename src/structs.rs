@@ -57,3 +57,8 @@ pub struct Permanent;
 
 #[derive(Default)]
 pub struct ChangeBackground;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub const QUIT_TO_DESKTOP: bool = true;
+#[cfg(target_arch = "wasm32")]
+pub const QUIT_TO_DESKTOP: bool = false;
