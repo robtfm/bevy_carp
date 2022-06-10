@@ -380,6 +380,7 @@ pub fn spawn_popup_menu(
         commands
             .spawn()
             .insert(Controller {
+                display_order: 4,
                 enabled: true,
                 action,
                 ..Default::default()

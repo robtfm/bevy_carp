@@ -243,7 +243,7 @@ fn warm_assets(asset_server: Res<AssetServer>, mut handles: Local<Vec<HandleUnty
 fn egui_setup(mut egui_ctx: ResMut<EguiContext>) {
     let widget_visuals = egui::style::WidgetVisuals {
         bg_fill: egui::Rgba::from_rgba_premultiplied(0.0, 0.0, 0.0, 0.8).into(),
-        bg_stroke: egui::Stroke::new(1.0, egui::Rgba::from_rgba_premultiplied(0.0, 0.0, 0.0, 0.8)),
+        bg_stroke: egui::Stroke::new(1.0, egui::Rgba::from_rgba_premultiplied(1.0, 1.0, 1.0, 1.0)),
         rounding: egui::Rounding::same(5.0),
         fg_stroke: egui::Stroke::new(1.0, egui::Rgba::from_rgba_premultiplied(0.8, 0.8, 1.0, 1.0)),
         expansion: 0.0,
@@ -489,6 +489,7 @@ fn create_level(
         }
 
         commands.spawn().insert(Controller {
+            display_order: 0,
             action: vec![
                 ("pause", ("menu", true), true),
                 ("undo", ("third action", true), true),
@@ -550,6 +551,7 @@ fn create_level(
             .insert(cam_pos)
             .insert(cam_z)
             .insert(Controller {
+                display_order: 1,
                 display_directions: Some("Pan"),
                 enabled: true,
                 forward: ("zoom in", false),
@@ -573,6 +575,7 @@ fn create_level(
             .insert(ExtentItem(IVec2::ONE, IVec2::ONE))
             .insert(Cursor)
             .insert(Controller {
+                display_order: 2,
                 display_directions: Some("Move"),
                 enabled: true,
                 left: ("move left", false),
@@ -853,14 +856,15 @@ fn grab_or_drop(
                     .remove::<Targeted>()
                     .insert(Selected)
                     .insert(Controller {
+                        display_order: 4,
                         enabled: true,
                         left: ("move left", false),
                         right: ("move right", false),
                         up: ("move up", false),
                         down: ("move down", false),
                         action: vec![
-                            ("rot_left", ("turn left", true), true),
-                            ("rot_right", ("turn right", true), true),
+                            ("rotate left", ("turn left", true), true),
+                            ("rotate right", ("turn right", true), true),
                         ],
                         ..Default::default()
                     });
@@ -907,8 +911,8 @@ fn rotate_plank(
 ) {
     for ev in ev.iter() {
         let dir = match ev.label {
-            "rot_left" => 1,
-            "rot_right" => 3,
+            "rotate left" => 1,
+            "rotate right" => 3,
             _ => continue,
         };
 
@@ -1129,6 +1133,8 @@ fn cut_plank(
                         .insert(ExtentItem(IVec2::ONE, IVec2::ONE))
                         .insert(Cut::default())
                         .insert(Controller {
+                            display_order: 3,
+                            display_directions: Some("Cut"),
                             enabled: true,
                             left: ("move left", false),
                             right: ("move right", false),

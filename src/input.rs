@@ -71,6 +71,7 @@ fn pad_connection(mut pad: ResMut<GamePadRes>, mut gamepad_event: EventReader<Ga
 
 #[derive(Component, Default, Clone)]
 pub struct Controller {
+    pub display_order: usize,
     pub display_directions: Option<&'static str>,
     pub forward: (&'static str, bool),
     pub back: (&'static str, bool),
@@ -671,7 +672,9 @@ fn show_controls(
         .resizable(false)
         .show(egui_context.ctx_mut(), |ui| {
             ui.set_max_width(100.0);
-            for controller in controllers.iter().filter(|c| c.enabled) {
+            let mut enabled_controllers = controllers.iter().filter(|c| c.enabled).collect::<Vec<_>>();
+            enabled_controllers.sort_by_key(|c| c.display_order);
+            for (i, &controller) in enabled_controllers.iter().enumerate() {
                 if let Some(disp) = controller.display_directions {
                     ui.scope(|ui| {
                         ui.style_mut().spacing.item_spacing = egui::vec2(0.0, 0.0);
@@ -713,12 +716,23 @@ fn show_controls(
                             });
                         });
                     });
+
+                    if controller.back.0 != "" {
+                        add(ui, controller.back.0, "zoom out".into());
+                    }
+                    if controller.forward.0 != "" {
+                        add(ui, controller.forward.0, "zoom in".into());
+                    }
                 }
 
                 for (action, (item, _), display) in controller.action.iter() {
                     if *display {
                         add(ui, item, action.to_string());
                     }
+                }
+
+                if i < enabled_controllers.len() - 1 {
+                    ui.add(egui::Separator::default().horizontal().spacing(25.0));
                 }
             }
         });
