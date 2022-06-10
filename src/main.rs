@@ -41,7 +41,7 @@ use bevy::{
         render_resource::{Extent3d, TextureDimension},
     },
     utils::{HashMap, HashSet},
-    window::{WindowResized, WindowMode},
+    window::{WindowResized, WindowMode}, ecs::event::{Events, ManualEventReader},
 };
 
 use bevy_egui::{
@@ -1245,7 +1245,8 @@ fn record_state(
 
 fn change_state(
     mut commands: Commands,
-    mut evs: EventReader<ActionEvent>,
+    mut actions: ResMut<Events<ActionEvent>>,
+    mut reader: Local<ManualEventReader<ActionEvent>>,
     mut undo: ResMut<UndoBuffer>,
     mut level: ResMut<Level>,
     mut done_planks: ResMut<DonePlanks>,
@@ -1253,13 +1254,16 @@ fn change_state(
     mut camera: Query<(&Transform, &mut Position, &mut PositionZ), With<Camera>>,
     mut reset: EventWriter<ResetEvent>,
     to_drop: Query<Entity, With<Selected>>,
+    cutter: Query<&Cut>,
     asset_server: Res<AssetServer>,
     audio: Res<AudioChannel<UndoChannel>>,
 ) {
     let Ok((&cursor_trans, mut cursor_pos)) = cursor.get_single_mut() else { return };
     let Ok((&camera_trans, mut camera_pos, mut camera_pos_z)) = camera.get_single_mut() else { return };
 
-    for ev in evs.iter() {
+    let mut action_to_send = None;
+
+    for ev in reader.iter(&actions) {
         match ev.label {
             "undo" => {
                 debug!(
@@ -1270,10 +1274,14 @@ fn change_state(
 
                 let current_is_action = undo.current_state().is_action;
 
-                if let Ok(ent) = to_drop.get_single() {
-                    commands.entity(ent).remove::<Selected>().remove::<Controller>();
-                    audio.play(asset_server.load("audio/zapsplat_multimedia_pop_up_tone_short_011_78863.mp3"),);
-                    return;
+                if to_drop.get_single().is_ok() {
+                    action_to_send = Some("grab");
+                    break;
+                }
+
+                if cutter.get_single().is_ok() {
+                    action_to_send = Some("cancel");
+                    break;
                 }
 
                 if let Some(state) = undo.prev() {
@@ -1306,10 +1314,14 @@ fn change_state(
                     undo.has_back()
                 );
 
-                if let Ok(ent) = to_drop.get_single() {
-                    commands.entity(ent).remove::<Selected>().remove::<Controller>();
-                    audio.play(asset_server.load("audio/zapsplat_multimedia_pop_up_tone_short_011_78863.mp3"),);
-                    return;
+                if to_drop.get_single().is_ok() {
+                    action_to_send = Some("grab");
+                    break;
+                }
+
+                if cutter.get_single().is_ok() {
+                    action_to_send = Some("cancel");
+                    break;
                 }
 
                 if let Some(state) = undo.next() {
@@ -1336,6 +1348,14 @@ fn change_state(
             }
             _ => (),
         }
+    }
+
+    if let Some(action) = action_to_send {
+        actions.send(ActionEvent{
+            label: action,
+            sender: Entity::from_raw(0),
+            target: None,
+        });
     }
 }
 

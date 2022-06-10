@@ -20,13 +20,12 @@ var base_color_sampler: sampler;
 [[group(2), binding(0)]]
 var<uniform> mesh: Mesh;
 
-// ported from https://www.shadertoy.com/view/XssXRB
-fn rand2(co: vec2<f32>, seed: f32) -> f32 {
-	return fract(sin(dot(co.xy ,vec2<f32>(seed,78.233))) * 43758.5453);
-}
-
+// based on https://www.shadertoy.com/view/XssXRB
 fn rand(n: f32, seed: f32) -> f32 {
-	return fract(sin(n*4532.63264)*5375.52465 * seed);
+	// return fract(sin(n*4532.63264)*5375.52465 * seed);
+    var p3 = vec3<f32>(n, seed, n) * 0.1031;
+    p3 = p3 + dot(p3, p3.yzx + 0.1234567);
+    return fract(sin((p3.x + p3.y) * p3.z));
 }
 
 fn cos_interpolate(v1: f32, v2: f32, a: f32) -> f32 {
@@ -36,7 +35,7 @@ fn cos_interpolate(v1: f32, v2: f32, a: f32) -> f32 {
 }
 
 fn noise(pos: f32, size: f32, seed: f32) -> f32 {	
-    let pos = max(pos, 0.0);
+    // let pos = max(pos, 0.0);
 	let grid = floor(pos * size) * 0.1;
     let pos_grid = ((pos) % (1.0/size)) * size;
 	let next_grid =  floor((pos + (1.0/size)) * size) * 0.1;
@@ -123,11 +122,11 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
         up = vec2<i32>(-up.y, up.x);
     }
 
-    texture_uv = texture_uv + 0.5 + vec2<f32>(material.texture_offset);
-    var color = wood_texture(texture_uv * 0.08);
+    texture_uv = texture_uv + 0.5 + vec2<f32>(material.texture_offset + 100);
+    var color = wood_texture(texture_uv * 0.1);
 
     let tile = vec2<i32>(in.uv);
-    let material_tile = vec2<i32>(tile_uv) + material.texture_offset;
+    let material_tile = vec2<i32>(tile_uv) + material.texture_offset + 100;
 
     var alpha = 0.0;
     var hilight_alpha = 0.0;
@@ -148,7 +147,7 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
         if (material.is_plank == 1u) {
             base = 0.5;
             range = 0.15;
-            size = 1.0;
+            size = 1.5;
         }
 
         if (!is_hole_left) {
