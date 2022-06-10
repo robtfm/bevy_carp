@@ -49,8 +49,8 @@ fn noise(pos: f32, size: f32, seed: f32) -> f32 {
 fn wood_texture(uv: vec2<f32>) -> vec3<f32>
 {
 	var u = noise(uv.x, 10.0, 272.0);
-	u = u * noise(uv.y, 10.0, 273.0) ;
-	u = u + noise(uv.y, 10.0, 274.0) ;
+	u = u * noise(uv.y, 10.0, 273.0);
+	u = u + noise(uv.y, 10.0, 274.0);
 	
 	let v = noise(uv.y + (u * 0.1), 110.0, 275.0);
 		

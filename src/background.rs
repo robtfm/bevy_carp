@@ -32,7 +32,7 @@ fn add_background(
 
         let mut rng = thread_rng();
         let id = rng.gen_range(1..=3);
-        let file = format!("lumber edit{}.png", id);
+        let file = format!("images/lumber edit{}.png", id);
     
         let mat = StandardMaterial {
             base_color_texture: Some(server.load(&file)),

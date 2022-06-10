@@ -159,6 +159,7 @@ fn main() {
         .add_event::<SpawnNail>()
         .add_event::<SpawnPlank>()
         // egui
+        .add_startup_system(warm_assets)
         .add_startup_system(egui_setup)
         .add_system(handle_window_resize)
         // menus
@@ -212,6 +213,30 @@ fn splash(mut evs: EventWriter<ActionEvent>) {
         label: "main menu",
         target: None,
     });
+}
+
+fn warm_assets(
+    asset_server: Res<AssetServer>,
+    mut handles: Local<Vec<HandleUntyped>>,
+) {
+    *handles = vec![
+        asset_server.load::<AudioSource, _>("audio/aaj_0404_HamrNail4Hits.mp3").clone_untyped(),
+        asset_server.load::<AudioSource, _>("audio/industrial_tools_hand_saw_hang_on_hook.mp3").clone_untyped(),
+        asset_server.load::<AudioSource, _>("audio/industrial_tools_hand_saw_remove_from_hook.mp3").clone_untyped(),
+        asset_server.load::<AudioSource, _>("audio/zapsplat_foley_wood_bambo_swoosh_through_air_001-[AudioTrimmer.com](1).mp3").clone_untyped(),
+        asset_server.load::<AudioSource, _>("audio/zapsplat_industrial_hand_saw_sawing_wood_hollow_fast_pace_short_71000-[AudioTrimmer.com].mp3").clone_untyped(),
+        asset_server.load::<AudioSource, _>("audio/zapsplat_multimedia_alert_mallet_hit_short_single_generic_003_79278.mp3").clone_untyped(),
+        asset_server.load::<AudioSource, _>("audio/zapsplat_multimedia_game_sound_game_show_correct_tone_bright_positive_006_80747.mp3").clone_untyped(),
+        asset_server.load::<AudioSource, _>("audio/zapsplat_multimedia_pop_up_tone_short_010_78862.mp3").clone_untyped(),
+        asset_server.load::<AudioSource, _>("audio/zapsplat_multimedia_pop_up_tone_short_011_78863.mp3").clone_untyped(),
+        asset_server.load::<AudioSource, _>("audio/zapsplat_office_compass_pencil_draw_circle_on_paper_003_22758-[AudioTrimmer.com].mp3").clone_untyped(),
+        asset_server.load::<AudioSource, _>("audio/zapsplat_sport_surfboard_leash_velcro_strap_undo_003.mp3").clone_untyped(),
+        asset_server.load::<AudioSource, _>("audio/zapsplat_sport_surfboard_leash_velcro_strap_undo_004.mp3").clone_untyped(),
+        asset_server.load::<Image, _>("images/lumber_edit1.png").clone_untyped(),
+        asset_server.load::<Image, _>("images/lumber_edit2.png").clone_untyped(),
+        asset_server.load::<Image, _>("images/lumber_edit3.png").clone_untyped(),
+        asset_server.load::<Image, _>("images/title.png").clone_untyped(),
+    ];
 }
 
 fn egui_setup(mut egui_ctx: ResMut<EguiContext>) {
@@ -1244,7 +1269,6 @@ fn record_state(
 }
 
 fn change_state(
-    mut commands: Commands,
     mut actions: ResMut<Events<ActionEvent>>,
     mut reader: Local<ManualEventReader<ActionEvent>>,
     mut undo: ResMut<UndoBuffer>,

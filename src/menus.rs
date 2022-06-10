@@ -44,7 +44,7 @@ pub(crate) fn spawn_main_menu(
     }
 
     let handle = handle.get_or_insert_with(||
-        server.load("title.png")
+        server.load("images/title.png")
     );
 
     let Some(image) = images.get(&*handle) else {
