@@ -4,32 +4,4 @@ out/bevy_carp_bg.wasm
 out/bevy_carp_bg.wasm.d.ts
 out/bevy_carp.d.ts
 out/bevy_carp.js
-out/assets/audio/aaj_0404_HamrNail4Hits.mp3
-out/assets/audio/industrial_tools_hand_saw_hang_on_hook.mp3
-out/assets/audio/industrial_tools_hand_saw_remove_from_hook.mp3
-out/assets/audio/zapsplat_foley_wood_bambo_swoosh_through_air_001-[AudioTrimmer.com](1).mp3
-out/assets/audio/zapsplat_industrial_hand_saw_sawing_wood_hollow_fast_pace_short_71000-[AudioTrimmer.com].mp3
-out/assets/audio/zapsplat_multimedia_alert_mallet_hit_short_single_generic_003_79278.mp3
-out/assets/audio/zapsplat_multimedia_game_sound_game_show_correct_tone_bright_positive_006_80747.mp3
-out/assets/audio/zapsplat_multimedia_pop_up_tone_short_010_78862.mp3
-out/assets/audio/zapsplat_multimedia_pop_up_tone_short_011_78863.mp3
-out/assets/audio/zapsplat_office_compass_pencil_draw_circle_on_paper_003_22758-[AudioTrimmer.com].mp3
-out/assets/audio/zapsplat_sport_surfboard_leash_velcro_strap_undo_003.mp3
-out/assets/audio/zapsplat_sport_surfboard_leash_velcro_strap_undo_004.mp3
-out/assets/audio/New folder/zapsplat_foley_wood_bambo_swoosh_through_air_001.mp3
-out/assets/audio/New folder/zapsplat_industrial_hand_saw_sawing_wood_hollow_fast_pace_short_71000.mp3
-out/assets/audio/New folder/zapsplat_office_compass_pencil_draw_circle_on_paper_003_22758.mp3
-out/assets/audio/New folder/zapsplat_office_compass_pencil_draw_circle_on_paper_004_22759-[AudioTrimmer.com].mp3
-out/assets/audio/New folder/zapsplat_office_compass_pencil_draw_circle_on_paper_004_22759.mp3
-out/assets/fonts/Asqualt.ttf
-out/assets/fonts/CLIFF.TTF
-out/assets/images/lumber edit1.png
-out/assets/images/lumber edit2.png
-out/assets/images/lumber edit3.png
-out/assets/images/title.png
-out/assets/shaders/wood.wgsl
-out/assets/audio/zapsplat_foley_wood_bambo_swoosh_through_air_001-[AudioTrimmer.com](1).mp3
-out/assets/audio/zapsplat_industrial_hand_saw_sawing_wood_hollow_fast_pace_short_71000-[AudioTrimmer.com].mp3
-out/assets/audio/zapsplat_office_compass_pencil_draw_circle_on_paper_003_22758-[AudioTrimmer.com].mp3
-out/assets/audio/New folder/zapsplat_office_compass_pencil_draw_circle_on_paper_004_22759-[AudioTrimmer.com].mp3
-out/assets/audio/New folder/zapsplat_office_compass_pencil_draw_circle_on_paper_004_22759-[AudioTrimmer.com].mp3
+out/assets
