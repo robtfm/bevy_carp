@@ -1,3 +1,5 @@
+// an easy way to make single texture / no texture materials
+
 use bevy::{
     ecs::system::{lifetimeless::SRes, SystemParam},
     pbr::MaterialPipeline,

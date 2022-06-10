@@ -1,9 +1,6 @@
 use bevy::prelude::*;
 use bevy::utils::HashSet;
-use rand::{
-    prelude::{SliceRandom},
-    Rng, RngCore,
-};
+use rand::{prelude::SliceRandom, Rng, RngCore};
 
 use crate::structs::{Position, PositionZ};
 
@@ -285,7 +282,10 @@ impl Plank {
             plank.rotate();
         }
 
-        plank.texture_offset = IVec2::new(rng.gen_range::<i32, _>(0..100), rng.gen_range::<i32, _>(0..100));
+        plank.texture_offset = IVec2::new(
+            rng.gen_range::<i32, _>(0..100),
+            rng.gen_range::<i32, _>(0..100),
+        );
         plank.normalize()
     }
 
@@ -331,7 +331,10 @@ pub fn gen_hole(size: usize, rng: &mut impl RngCore) -> Hole {
     let mut hole = Hole {
         coords: HashSet::from_iter(std::iter::once(IVec2::ZERO)),
         turns: 0,
-        texture_offset: IVec2::new(rng.gen_range::<i32, _>(0..100), rng.gen_range::<i32, _>(0..100)),
+        texture_offset: IVec2::new(
+            rng.gen_range::<i32, _>(0..100),
+            rng.gen_range::<i32, _>(0..100),
+        ),
     };
 
     for _ in 1..size {

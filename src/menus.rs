@@ -12,7 +12,9 @@ use crate::{
     input::Controller,
     model::{CoordSet, LevelBase},
     spawn_random,
-    structs::{ActionEvent, MenuItem, PopupMenu, PopupMenuEvent, Position, PositionZ, ChangeBackground},
+    structs::{
+        ActionEvent, ChangeBackground, MenuItem, PopupMenu, PopupMenuEvent, Position, PositionZ,
+    },
     LevelDef, LevelSet, MenuChannel, Permanent, SpawnLevelEvent, SpawnPlank,
 };
 
@@ -43,9 +45,7 @@ pub(crate) fn spawn_main_menu(
         return;
     }
 
-    let handle = handle.get_or_insert_with(||
-        server.load("images/title.png")
-    );
+    let handle = handle.get_or_insert_with(|| server.load("images/title.png"));
 
     let Some(image) = images.get(&*handle) else {
         // try again next time
@@ -124,10 +124,7 @@ pub(crate) fn spawn_main_menu(
     });
 }
 
-pub fn spawn_credits(
-    mut ev: EventReader<ActionEvent>,
-    mut menu: EventWriter<PopupMenuEvent>,
-) {
+pub fn spawn_credits(mut ev: EventReader<ActionEvent>, mut menu: EventWriter<PopupMenuEvent>) {
     for ev in ev.iter() {
         if ev.label == "credits" {
             menu.send(PopupMenuEvent {
@@ -140,49 +137,41 @@ pub fn spawn_credits(
                         ("".into(), "", false),
                         ("by".into(), "", false),
                         ("".into(), "", false),
-
                         ("".into(), "", false),
                         ("Once".into(), "", false),
                         ("".into(), "", false),
                         ("robtfm".into(), "", false),
                         ("".into(), "", false),
-
                         ("".into(), "", false),
                         ("".into(), "", false),
                         ("".into(), "", false),
                         ("".into(), "", false),
                         ("".into(), "", false),
-
                         ("".into(), "", false),
                         ("built".into(), "", false),
                         ("".into(), "", false),
                         ("bevy".into(), "", false),
                         ("".into(), "", false),
-
                         ("".into(), "", false),
                         ("using".into(), "", false),
                         ("".into(), "", false),
                         ("kira".into(), "", false),
                         ("".into(), "", false),
-
                         ("".into(), "", false),
                         ("".into(), "", false),
                         ("".into(), "", false),
                         ("egui".into(), "", false),
                         ("".into(), "", false),
-
                         ("".into(), "", false),
                         ("".into(), "", false),
                         ("".into(), "", false),
                         ("".into(), "", false),
                         ("".into(), "", false),
-
                         ("".into(), "", false),
                         ("SFX".into(), "", false),
                         ("".into(), "", false),
                         ("zapsplat".into(), "", false),
                         ("".into(), "", false),
-
                         ("".into(), "", false),
                         ("".into(), "", false),
                         ("Ok".into(), "main menu", true),
@@ -213,9 +202,8 @@ pub fn spawn_play_menu(
 
     // this sucks i know
     let strs = [
-        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", 
-        "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", 
-        "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", 
+        "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16",
+        "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29",
     ];
 
     for ev in reader.iter(&evs) {
@@ -266,7 +254,8 @@ pub fn spawn_play_menu(
                 let dur = today.signed_duration_since(start_date);
                 let seed = dur.num_days() * 1068;
                 key = "Daily";
-                *levelset = spawn_random(30, 0, format!("Daily Set for {}", today), seed as u64, key);
+                *levelset =
+                    spawn_random(30, 0, format!("Daily Set for {}", today), seed as u64, key);
             }
             _ => return,
         }
@@ -278,38 +267,36 @@ pub fn spawn_play_menu(
                 settings.set("current daily date", &today).unwrap();
             }
         }
-    
-        let max_level:usize = settings.get(key).unwrap_or_default();
+
+        let max_level: usize = settings.get(key).unwrap_or_default();
         if max_level == 0 {
             spawn_level.send(SpawnLevelEvent {
                 def: levelset.levels[0].clone(),
             });
             return;
         }
-    
+
         // if we get here we must have chosen a set, and already started the set
-        let items = (0..30).map(|i| {
-            ((i+1).to_string(), strs[i], i <= max_level)
-        }).collect();
-    
+        let items = (0..30)
+            .map(|i| ((i + 1).to_string(), strs[i], i <= max_level))
+            .collect();
+
         let menu = PopupMenu {
-            heading: format!("{}\nSelect Level", levelset.title), 
+            heading: format!("{}\nSelect Level", levelset.title),
             items,
             cancel_action: Some("play"),
             transparent: false,
             width: 6,
             header_size: 0.35,
         };
-    
-        spawn_menu.send(PopupMenuEvent{
+
+        spawn_menu.send(PopupMenuEvent {
             menu,
             sender: Entity::from_raw(0),
             sound: false,
         });
     }
 }
-
-
 
 pub fn spawn_in_level_menu(
     mut evs: EventReader<ActionEvent>,
@@ -328,12 +315,7 @@ pub fn spawn_in_level_menu(
             spawn.send(PopupMenuEvent {
                 sender: ev.sender,
                 menu: PopupMenu {
-                    heading: format!(
-                        "Paused ({}/{})\n{}",
-                        set.current_level + 1,
-                        30,
-                        set.title,
-                    ),
+                    heading: format!("Paused ({}/{})\n{}", set.current_level + 1, 30, set.title,),
                     items: vec![
                         ("Resume".into(), "cancel", true),
                         ("Restart Level".into(), "restart", true),
@@ -459,7 +441,9 @@ pub fn spawn_popup_menu(
                                     ui.vertical_centered(|ui| {
                                         if i == *menu_position {
                                             ui.label(text.background_color(
-                                                egui::Rgba::from_rgba_premultiplied(0.2, 0.2, 0.2, 0.2),
+                                                egui::Rgba::from_rgba_premultiplied(
+                                                    0.2, 0.2, 0.2, 0.2,
+                                                ),
                                             ));
                                         } else {
                                             ui.label(text);
@@ -471,20 +455,28 @@ pub fn spawn_popup_menu(
                             for i in 0..row_count {
                                 strip.strip(|strip| {
                                     strip
-                                        .sizes(egui_extras::Size::relative(1.0 / menu.width as f32), menu.width)
+                                        .sizes(
+                                            egui_extras::Size::relative(1.0 / menu.width as f32),
+                                            menu.width,
+                                        )
                                         .horizontal(|mut strip| {
                                             for j in 0..menu.width {
                                                 strip.cell(|ui| {
                                                     let pos = i * menu.width + j;
                                                     let (text, _, enabled) = &menu.items[pos];
-                                                    let mut text = egui::RichText::from(text).size(60.0);
+                                                    let mut text =
+                                                        egui::RichText::from(text).size(60.0);
                                                     if !enabled {
-                                                        text = text.color(egui::Color32::from_rgb(100, 100, 75));
+                                                        text = text.color(egui::Color32::from_rgb(
+                                                            100, 100, 75,
+                                                        ));
                                                     }
                                                     ui.vertical_centered(|ui| {
                                                         if pos == *menu_position {
                                                             ui.label(text.background_color(
-                                                                egui::Rgba::from_rgba_premultiplied(0.2, 0.2, 0.2, 0.2),
+                                                                egui::Rgba::from_rgba_premultiplied(
+                                                                    0.2, 0.2, 0.2, 0.2,
+                                                                ),
                                                             ));
                                                         } else {
                                                             ui.label(text);
@@ -512,18 +504,19 @@ pub fn spawn_popup_menu(
                     let width = match ev.label {
                         "up" => active_menu.as_ref().unwrap().0.width,
                         "left" => 1,
-                        _ => panic!()
+                        _ => panic!(),
                     };
                     loop {
                         if *menu_position < width {
                             while *menu_position + width < active_items.len() {
                                 *menu_position += width;
-                            }                            
+                            }
                         } else {
                             *menu_position -= width;
-                        }    
+                        }
 
-                        if active_items[*menu_position].2 // enabled 
+                        if active_items[*menu_position].2
+                        // enabled
                         {
                             break;
                         }
@@ -536,18 +529,19 @@ pub fn spawn_popup_menu(
                     let width = match ev.label {
                         "down" => active_menu.as_ref().unwrap().0.width,
                         "right" => 1,
-                        _ => panic!()
+                        _ => panic!(),
                     };
                     loop {
                         if *menu_position + width >= active_items.len() {
                             while *menu_position >= width {
                                 *menu_position -= width;
-                            }                            
+                            }
                         } else {
                             *menu_position += width;
-                        }    
+                        }
 
-                        if active_items[*menu_position].2 // enabled 
+                        if active_items[*menu_position].2
+                        // enabled
                         {
                             break;
                         }

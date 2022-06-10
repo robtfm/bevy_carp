@@ -57,4 +57,3 @@ pub struct Permanent;
 
 #[derive(Default)]
 pub struct ChangeBackground;
-
