@@ -108,17 +108,16 @@ pub(crate) fn spawn_main_menu(
     popup.send(PopupMenuEvent {
         sender: cam_id,
         menu: PopupMenu {
-            heading: "".into(),
             items: vec![
                 ("Play".into(), "play", true),
                 ("Options (tbd)".into(), "options", false),
                 ("Credits".into(), "credits", true),
                 ("Quit to Desktop".into(), "quit", QUIT_TO_DESKTOP),
             ],
-            cancel_action: None,
             transparent: true,
             header_size: 0.4,
-            width: 1,
+            footer: format!("v{}", env!("CARGO_PKG_VERSION")),
+            ..Default::default()
         },
         sound: false,
     });
@@ -130,7 +129,6 @@ pub fn spawn_credits(mut ev: EventReader<ActionEvent>, mut menu: EventWriter<Pop
             menu.send(PopupMenuEvent {
                 sender: Entity::from_raw(0),
                 menu: PopupMenu {
-                    heading: "".into(),
                     items: vec![
                         ("".into(), "", false),
                         ("Measure".into(), "", false),
@@ -179,9 +177,9 @@ pub fn spawn_credits(mut ev: EventReader<ActionEvent>, mut menu: EventWriter<Pop
                         ("".into(), "", false),
                     ],
                     cancel_action: Some("main menu"),
-                    transparent: false,
                     header_size: 0.0,
                     width: 5,
+                    ..Default::default()
                 },
                 sound: false,
             });
@@ -230,9 +228,7 @@ pub fn spawn_play_menu(
                             ("Hard".into(), "play hard", true),
                         ],
                         cancel_action: Some("main menu"),
-                        transparent: false,
-                        header_size: 0.35,
-                        width: 1,
+                        ..Default::default()
                     },
                     sound: false,
                 });
@@ -285,9 +281,8 @@ pub fn spawn_play_menu(
             heading: format!("{}\nSelect Level", levelset.title),
             items,
             cancel_action: Some("play"),
-            transparent: false,
             width: 6,
-            header_size: 0.35,
+            ..Default::default()
         };
 
         spawn_menu.send(PopupMenuEvent {
@@ -323,9 +318,7 @@ pub fn spawn_in_level_menu(
                         ("Quit to Desktop".into(), "quit", QUIT_TO_DESKTOP),
                     ],
                     cancel_action: Some("cancel"),
-                    transparent: false,
-                    header_size: 0.35,
-                    width: 1,
+                    ..Default::default()
                 },
                 sound: true,
             })
@@ -489,7 +482,10 @@ pub fn spawn_popup_menu(
                             }
                         }
 
-                        strip.empty();
+                        strip.cell(|ui| {
+                            let footer = egui::RichText::from(menu.footer.as_str()).size(15.0);
+                            ui.with_layout(egui::Layout::bottom_up(egui::Align::Max), |ui| ui.label(footer));
+                        });
                     });
             });
     }

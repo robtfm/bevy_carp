@@ -7,7 +7,7 @@ use bevy::{
     reflect::TypeUuid,
     render::{
         render_asset::{PrepareAssetError, RenderAsset, RenderAssets},
-        render_resource::{encase::private::WriteInto, *},
+        render_resource::{*, std140::{AsStd140, Std140}},
         renderer::RenderDevice,
     },
 };
@@ -20,7 +20,8 @@ pub struct GpuBufferedMaterial {
 
 pub trait SimpleTextureSpec: Sync + Send + Clone + TypeUuid + 'static {
     type Param: SystemParam;
-    type Uniform: ShaderType + WriteInto;
+    // 0.8: type Uniform: ShaderType + WriteInto;
+    type Uniform: AsStd140;
 
     fn sample_type() -> TextureSampleType {
         TextureSampleType::Float { filterable: true }
@@ -86,6 +87,8 @@ impl<S: SimpleTextureSpec<Param = P>, P: SystemParam> RenderAsset for SimpleText
             return Err(PrepareAssetError::RetryNextUpdate(material));
         };
 
+        /* 0.8
+
         let byte_buffer = vec![0u8; S::Uniform::min_size().get() as usize];
         let mut buffer = encase::UniformBuffer::new(byte_buffer);
         buffer.write(&uniform_data).unwrap();
@@ -96,6 +99,14 @@ impl<S: SimpleTextureSpec<Param = P>, P: SystemParam> RenderAsset for SimpleText
             contents: buffer.as_ref(),
         });
 
+         */
+
+        let buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
+            label: Some("material uniform buffer"),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            contents: uniform_data.as_std140().as_bytes(),
+        });
+         
         let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
             entries: &[
                 BindGroupEntry {
@@ -149,7 +160,8 @@ impl<S: SimpleTextureSpec> Material for SimpleTextureMaterial<S> {
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
-                        min_binding_size: Some(S::Uniform::min_size()),
+                        // 0.8: min_binding_size: Some(S::Uniform::min_size()),
+                        min_binding_size: BufferSize::new(S::Uniform::std140_size_static() as u64),
                     },
                     count: None,
                 },
@@ -179,7 +191,8 @@ impl<S: SimpleTextureSpec> Material for SimpleTextureMaterial<S> {
 
 pub trait SimpleUniformSpec: Sync + Send + Clone + TypeUuid + 'static {
     type Param: SystemParam;
-    type Uniform: ShaderType + WriteInto;
+    // 0.8: type Uniform: ShaderType + WriteInto;
+    type Uniform: AsStd140;
 
     fn prepare_uniform_data(
         &self,
@@ -231,6 +244,7 @@ impl<S: SimpleUniformSpec<Param = P>, P: SystemParam> RenderAsset for SimpleUnif
                 return Err(PrepareAssetError::RetryNextUpdate(material.clone()));
         };
 
+        /* 0.8
         let byte_buffer = vec![0u8; S::Uniform::min_size().get() as usize];
         let mut buffer = encase::UniformBuffer::new(byte_buffer);
         buffer.write(&uniform_data).unwrap();
@@ -239,6 +253,13 @@ impl<S: SimpleUniformSpec<Param = P>, P: SystemParam> RenderAsset for SimpleUnif
             label: Some("material uniform buffer"),
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             contents: buffer.as_ref(),
+        });
+        */
+
+        let buffer = render_device.create_buffer_with_data(&BufferInitDescriptor {
+            label: Some("material uniform buffer"),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+            contents: uniform_data.as_std140().as_bytes(),
         });
 
         let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
@@ -283,7 +304,8 @@ impl<S: SimpleUniformSpec> Material for SimpleUniformMaterial<S> {
                 ty: BindingType::Buffer {
                     ty: BufferBindingType::Uniform,
                     has_dynamic_offset: false,
-                    min_binding_size: Some(S::Uniform::min_size()),
+                    // 0.8: min_binding_size: Some(S::Uniform::min_size()),
+                    min_binding_size: BufferSize::new(S::Uniform::std140_size_static() as u64),                    
                 },
                 count: None,
             }],

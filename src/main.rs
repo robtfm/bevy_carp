@@ -1943,10 +1943,7 @@ fn hammer_home(
                         menu: PopupMenu {
                             heading: format!("Nice one!\n {}/{} completed!", next, 30),
                             items,
-                            cancel_action: None,
-                            transparent: false,
-                            header_size: 0.35,
-                            width: 1,
+                            ..Default::default()
                         },
                         sound: true,
                     });

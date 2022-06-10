@@ -41,6 +41,21 @@ pub struct PopupMenu {
     pub transparent: bool,
     pub header_size: f32,
     pub width: usize,
+    pub footer: String,
+}
+
+impl Default for PopupMenu {
+    fn default() -> Self {
+        Self {
+            heading: "".into(),
+            items: Vec::new(),
+            cancel_action: None,
+            transparent: false,
+            header_size: 0.35,
+            width: 1,
+            footer: "".into(),
+        }
+    }
 }
 
 pub struct PopupMenuEvent {

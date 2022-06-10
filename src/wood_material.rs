@@ -1,4 +1,4 @@
-use bevy::{prelude::*, reflect::TypeUuid, render::render_resource::*};
+use bevy::{prelude::*, reflect::TypeUuid, render::render_resource::{*, std140::AsStd140}};
 
 use crate::shader::{SimpleTextureMaterial, SimpleTextureSpec};
 
@@ -25,7 +25,8 @@ pub struct WoodMaterialSpec {
     pub base_color_texture: Handle<Image>,
 }
 
-#[derive(ShaderType)]
+// 0.8 #[derive(ShaderType)]
+#[derive(AsStd140)]
 pub struct WoodMaterialUniformData {
     pub primary_color: Vec4,
     pub secondary_color: Vec4,

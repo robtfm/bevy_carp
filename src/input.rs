@@ -34,17 +34,29 @@ pub struct GamePadRes(pub Option<Gamepad>);
 fn pad_connection(mut pad: ResMut<GamePadRes>, mut gamepad_event: EventReader<GamepadEvent>) {
     for event in gamepad_event.iter() {
         match &event {
+            /* 0.8
             GamepadEvent {
                 gamepad,
                 event_type: GamepadEventType::Connected,
             } => {
+                */
+            GamepadEvent(
+                gamepad,
+                GamepadEventType::Connected,
+            ) => {
                 pad.0 = Some(*gamepad);
                 debug!("C");
             }
+            /* 0.8
             GamepadEvent {
                 gamepad,
                 event_type: GamepadEventType::Disconnected,
             } => {
+                 */
+            GamepadEvent(
+                gamepad,
+                GamepadEventType::Disconnected,
+            ) => {
                 if let Some(cur_pad) = pad.0 {
                     if &cur_pad == gamepad {
                         pad.0 = None;
@@ -581,10 +593,15 @@ impl ActionInputs {
                     if let Some(gamepad) = inputs.pad.0 {
                         let axis = inputs
                             .axes
+                            /* 0.8
                             .get(GamepadAxis {
                                 gamepad,
                                 axis_type: *axis_type,
-                            })
+                            })  */
+                            .get(GamepadAxis(
+                                gamepad,
+                                *axis_type,
+                            ))
                             .unwrap();
                         if axis > 0.5 && *right {
                             self.last_used = LastControlType::Gamepad;
@@ -600,10 +617,16 @@ impl ActionInputs {
                     if let Some(gamepad) = inputs.pad.0 {
                         let button = inputs
                             .buttons
+                            /* 0.8
                             .get(GamepadButton {
                                 gamepad,
                                 button_type: *button_type,
                             })
+                             */
+                            .get(GamepadButton(
+                                gamepad,
+                                *button_type,
+                            ))
                             .unwrap();
                         if button > 0.5 {
                             self.last_used = LastControlType::Gamepad;
