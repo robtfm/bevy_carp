@@ -147,7 +147,7 @@ fn fragment(in: FragmentInput) -> [[location(0)]] vec4<f32> {
         if (material.is_plank == 1u) {
             base = 0.5;
             range = 0.15;
-            size = 1.5;
+            size = 1.0;
         }
 
         if (!is_hole_left) {
