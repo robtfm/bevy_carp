@@ -163,6 +163,11 @@ pub fn spawn_credits(mut ev: EventReader<ActionEvent>, mut menu: EventWriter<Pop
                         ("".into(), "", false),
                         ("".into(), "", false),
                         ("".into(), "", false),
+                        ("pkvstore".into(), "", false),
+                        ("".into(), "", false),
+                        ("".into(), "", false),
+                        ("".into(), "", false),
+                        ("".into(), "", false),
                         ("".into(), "", false),
                         ("".into(), "", false),
                         ("".into(), "", false),
@@ -427,7 +432,7 @@ pub fn spawn_popup_menu(
                         if menu.width == 1 {
                             for (i, (text, _, enabled)) in menu.items.iter().enumerate() {
                                 strip.cell(|ui| {
-                                    let mut text = egui::RichText::from(text).size(60.0);
+                                    let mut text = egui::RichText::from(text).size(50.0);
                                     if !enabled {
                                         text = text.color(egui::Color32::from_rgb(100, 100, 75));
                                     }
@@ -458,7 +463,7 @@ pub fn spawn_popup_menu(
                                                     let pos = i * menu.width + j;
                                                     let (text, _, enabled) = &menu.items[pos];
                                                     let mut text =
-                                                        egui::RichText::from(text).size(60.0);
+                                                        egui::RichText::from(text).size(50.0);
                                                     if !enabled {
                                                         text = text.color(egui::Color32::from_rgb(
                                                             100, 100, 75,
