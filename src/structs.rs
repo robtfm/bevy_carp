@@ -1,8 +1,11 @@
 use bevy::prelude::*;
 
+#[derive(Clone, Copy, Deref, PartialEq, Eq)]
+pub struct ActionLabel(pub &'static str);
+
 pub struct ActionEvent {
     pub sender: Entity,
-    pub label: &'static str,
+    pub label: ActionLabel,
     pub target: Option<Entity>,
 }
 
@@ -44,8 +47,8 @@ pub struct UndoChannel;
 #[derive(Clone)]
 pub struct PopupMenu {
     pub heading: String,
-    pub items: Vec<(String, &'static str, bool)>,
-    pub cancel_action: Option<&'static str>,
+    pub items: Vec<(String, ActionLabel, bool)>,
+    pub cancel_action: Option<ActionLabel>,
     pub transparent: bool,
     pub header_size: f32,
     pub width: usize,

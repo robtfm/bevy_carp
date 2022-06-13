@@ -9,11 +9,11 @@ use bevy_pkv::PkvStore;
 use egui_extras::StripBuilder;
 
 use crate::{
-    input::Controller,
+    input::{ActionType, Action, Controller},
     model::{CoordSet, LevelBase},
     spawn_random,
     structs::{
-        ActionEvent, ChangeBackground, MenuItem, PopupMenu, PopupMenuEvent, Position, PositionZ, QUIT_TO_DESKTOP,
+        ActionEvent, ChangeBackground, MenuItem, PopupMenu, PopupMenuEvent, Position, PositionZ, QUIT_TO_DESKTOP, ActionLabel,
     },
     LevelDef, LevelSet, MenuChannel, Permanent, SpawnLevelEvent, SpawnPlank,
 };
@@ -37,7 +37,7 @@ pub(crate) fn spawn_main_menu(
     let mut run = false;
 
     for ev in reader.iter(&actions) {
-        if ev.label == "main menu" {
+        if ev.label == ActionLabel("main menu") {
             run = true;
         }
     }
@@ -54,7 +54,7 @@ pub(crate) fn spawn_main_menu(
         // try again next time
         actions.send(ActionEvent{
             sender: Entity::from_raw(0),
-            label: "main menu",
+            label: ActionLabel("main menu"),
             target: None,
         });
         return;
@@ -104,7 +104,7 @@ pub(crate) fn spawn_main_menu(
 
     actions.send(ActionEvent {
         sender: cam_id,
-        label: "focus",
+        label: ActionLabel("focus"),
         target: None,
     });
 
@@ -112,10 +112,10 @@ pub(crate) fn spawn_main_menu(
         sender: cam_id,
         menu: PopupMenu {
             items: vec![
-                ("Play".into(), "play", true),
-                ("Options (tbd)".into(), "options", false),
-                ("Credits".into(), "credits", true),
-                ("Quit to Desktop".into(), "quit", QUIT_TO_DESKTOP),
+                ("Play".into(), ActionLabel("play"), true),
+                ("Options (tbd)".into(), ActionLabel("options"), false),
+                ("Credits".into(), ActionLabel("credits"), true),
+                ("Quit to Desktop".into(), ActionLabel("quit"), QUIT_TO_DESKTOP),
             ],
             transparent: true,
             header_size: 0.4,
@@ -128,63 +128,63 @@ pub(crate) fn spawn_main_menu(
 
 pub fn spawn_credits(mut ev: EventReader<ActionEvent>, mut menu: EventWriter<PopupMenuEvent>) {
     for ev in ev.iter() {
-        if ev.label == "credits" {
+        if ev.label == ActionLabel("credits") {
             menu.send(PopupMenuEvent {
                 sender: Entity::from_raw(0),
                 menu: PopupMenu {
                     items: vec![
-                        ("".into(), "", false),
-                        ("Measure".into(), "", false),
-                        ("".into(), "", false),
-                        ("by".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("Once".into(), "", false),
-                        ("".into(), "", false),
-                        ("robtfm".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("built".into(), "", false),
-                        ("".into(), "", false),
-                        ("bevy".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("using".into(), "", false),
-                        ("".into(), "", false),
-                        ("kira".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("egui".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("pkvstore".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("SFX".into(), "", false),
-                        ("".into(), "", false),
-                        ("zapsplat".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
-                        ("Ok".into(), "main menu", true),
-                        ("".into(), "", false),
-                        ("".into(), "", false),
+                        ("".into(), ActionLabel(""), false),
+                        ("Measure".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("by".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("Once".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("robtfm".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("built".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("bevy".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("using".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("kira".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("egui".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("pkvstore".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("SFX".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("zapsplat".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("Ok".into(), ActionLabel("main menu"), true),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
                     ],
-                    cancel_action: Some("main menu"),
+                    cancel_action: Some(ActionLabel("main menu")),
                     header_size: 0.0,
                     width: 5,
                     ..Default::default()
@@ -215,7 +215,7 @@ pub fn spawn_play_menu(
     for ev in reader.iter(&evs) {
         let key;
         for i in 0..30 {
-            if ev.label == strs[i] {
+            if ev.label == ActionLabel(strs[i]) {
                 levelset.current_level = i;
                 spawn_level.send(SpawnLevelEvent {
                     def: levelset.levels[i].clone(),
@@ -223,19 +223,19 @@ pub fn spawn_play_menu(
             }
         }
 
-        match ev.label {
+        match ev.label.0 {
             "play" => {
                 spawn_menu.send(PopupMenuEvent {
                     sender: ev.sender,
                     menu: PopupMenu {
                         heading: "Choose Difficulty".into(),
                         items: vec![
-                            ("Easy".into(), "play easy", true),
-                            ("Medium".into(), "play medium", true),
-                            ("Hard".into(), "play hard", true),
-                            ("Daily Mix".into(), "play daily", true),
+                            ("Easy".into(), ActionLabel("play easy"), true),
+                            ("Medium".into(), ActionLabel("play medium"), true),
+                            ("Hard".into(), ActionLabel("play hard"), true),
+                            ("Daily Mix".into(), ActionLabel("play daily"), true),
                         ],
-                        cancel_action: Some("main menu"),
+                        cancel_action: Some(ActionLabel("main menu")),
                         ..Default::default()
                     },
                     sound: false,
@@ -282,13 +282,13 @@ pub fn spawn_play_menu(
 
         // if we get here we must have chosen a set, and already started the set
         let items = (0..30)
-            .map(|i| ((i + 1).to_string(), strs[i], i <= max_level))
+            .map(|i| ((i + 1).to_string(), ActionLabel(strs[i]), i <= max_level))
             .collect();
 
         let menu = PopupMenu {
             heading: format!("{}\nSelect Level", levelset.title),
             items,
-            cancel_action: Some("play"),
+            cancel_action: Some(ActionLabel("play")),
             width: 6,
             ..Default::default()
         };
@@ -309,7 +309,7 @@ pub fn spawn_in_level_menu(
     mut spawn: EventWriter<PopupMenuEvent>,
 ) {
     for ev in evs.iter() {
-        if ev.label == "pause" {
+        if ev.label.0 == "pause" {
             println!(
                 "Paused\n[{}/{}/{}]",
                 level.num_holes, level.total_blocks, level.seed
@@ -320,12 +320,12 @@ pub fn spawn_in_level_menu(
                 menu: PopupMenu {
                     heading: format!("Paused ({}/{})\n{}", set.current_level + 1, 30, set.title,),
                     items: vec![
-                        ("Resume".into(), "cancel", true),
-                        ("Restart Level".into(), "restart", true),
-                        ("Main Menu".into(), "main menu", true),
-                        ("Quit to Desktop".into(), "quit", QUIT_TO_DESKTOP),
+                        ("Resume".into(), ActionLabel("cancel"), true),
+                        ("Restart Level".into(), ActionLabel("restart"), true),
+                        ("Main Menu".into(), ActionLabel("main menu"), true),
+                        ("Quit to Desktop".into(), ActionLabel("quit"), QUIT_TO_DESKTOP),
                     ],
-                    cancel_action: Some("cancel"),
+                    cancel_action: Some(ActionLabel("cancel")),
                     ..Default::default()
                 },
                 sound: true,
@@ -359,25 +359,23 @@ pub fn spawn_popup_menu(
             controller.enabled = false;
         }
 
-        let mut action = vec![
-            ("up", ("move up", true), false),
-            ("up", ("pan up", true), true),
-            ("up", ("zoom in", true), false),
-            ("down", ("move down", true), false),
-            ("down", ("pan down", true), true),
-            ("down", ("zoom out", true), false),
-            ("cancel", ("menu", true), false),
-            ("cancel", ("second action", true), true),
-            ("select", ("main action", true), true),
+        let mut actions = vec![
+            (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: true, display: true }),
+            (ActionType::PanUp, Action{ label: ActionLabel("up"), sticky: true, display: false }),
+            (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: true, display: true }),
+            (ActionType::PanDown, Action{ label: ActionLabel("down"), sticky: true, display: false }),
+            (ActionType::SecondAction, Action{ label: ActionLabel("cancel"), sticky: true, display: true }),
+            (ActionType::Menu, Action{ label: ActionLabel("cancel"), sticky: true, display: false }),
+            (ActionType::MainAction, Action{ label: ActionLabel("select"), sticky: true, display: true }),
         ];
 
         if ev.menu.width > 1 {
-            action.extend(vec![
-                ("left", ("move left", true), false),
-                ("left", ("pan left", true), true),
-                ("right", ("move right", true), false),
-                ("right", ("pan right", true), true),
-            ])
+            actions.extend(vec![
+                (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: true, display: true }),
+                (ActionType::PanLeft, Action{ label: ActionLabel("left"), sticky: true, display: false }),
+                (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: true, display: true }),
+                (ActionType::PanRight, Action{ label: ActionLabel("right"), sticky: true, display: false }),
+            ]);
         }
 
         commands
@@ -385,7 +383,7 @@ pub fn spawn_popup_menu(
             .insert(Controller {
                 display_order: 4,
                 enabled: true,
-                action,
+                actions,
                 ..Default::default()
             })
             .insert(Position(IVec2::ZERO))
@@ -503,10 +501,10 @@ pub fn spawn_popup_menu(
 
     for ev in action_reader.iter(&actions) {
         if menu_items.get(ev.sender).is_ok() {
-            match ev.label {
+            match ev.label.0 {
                 "up" | "left" => {
                     let active_items = &active_menu.as_ref().unwrap().0.items;
-                    let width = match ev.label {
+                    let width = match ev.label.0 {
                         "up" => active_menu.as_ref().unwrap().0.width,
                         "left" => 1,
                         _ => panic!(),
@@ -531,7 +529,7 @@ pub fn spawn_popup_menu(
                 }
                 "down" | "right" => {
                     let active_items = &active_menu.as_ref().unwrap().0.items;
-                    let width = match ev.label {
+                    let width = match ev.label.0 {
                         "down" => active_menu.as_ref().unwrap().0.width,
                         "right" => 1,
                         _ => panic!(),

@@ -10,7 +10,7 @@ use bevy::{
 use bevy_egui::{egui, EguiContext};
 use egui_extras::StripBuilder;
 
-use crate::{structs::{ActionEvent, Position, PositionZ, LevelDef}, LevelSet};
+use crate::{structs::{ActionEvent, LevelDef, ActionLabel}, LevelSet};
 
 pub struct InputPlugin;
 
@@ -70,17 +70,50 @@ fn pad_connection(mut pad: ResMut<GamePadRes>, mut gamepad_event: EventReader<Ga
     }
 }
 
+#[derive(Clone, Copy)]
+pub struct Action {
+    pub label: ActionLabel,
+    pub sticky: bool,
+    pub display: bool,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ActionType {
+    Menu,
+    MoveUp,
+    MoveDown,
+    MoveLeft,
+    MoveRight,
+    PanUp,
+    PanDown,
+    PanLeft,
+    PanRight,
+    PanFocus,
+    MainAction,
+    SecondAction,
+    ThirdAction,
+    FourthAction,
+    ZoomIn,
+    ZoomOut,
+    TurnLeft,
+    TurnRight,
+
+}
+
+#[derive(Clone)]
+pub struct DisplayDirections {
+    pub label: String,
+    pub up: ActionType,
+    pub down: ActionType,
+    pub left: ActionType,
+    pub right: ActionType,
+}
+
 #[derive(Component, Default, Clone)]
 pub struct Controller {
     pub display_order: usize,
-    pub display_directions: Option<&'static str>,
-    pub forward: (&'static str, bool),
-    pub back: (&'static str, bool),
-    pub left: (&'static str, bool),
-    pub right: (&'static str, bool),
-    pub up: (&'static str, bool),
-    pub down: (&'static str, bool),
-    pub action: Vec<(&'static str, (&'static str, bool), bool)>,
+    pub display_directions: Option<DisplayDirections>,
+    pub actions: Vec<(ActionType, Action)>,
     pub enabled: bool,
     pub initialized: bool,
 }
@@ -100,17 +133,14 @@ fn controller(
     inputs: InputParams,
     mut controllers: Query<(
         Entity,
-        Option<&Transform>,
-        Option<&mut Position>,
-        Option<&mut PositionZ>,
         &mut Controller,
     )>,
-    mut action: EventWriter<ActionEvent>,
+    mut actions: EventWriter<ActionEvent>,
     mut mapping: ResMut<ActionInputs>,
     mut last_used: ResMut<LastControlType>,
 ) {
     // Handle key input
-    for (ent, maybe_transform, maybe_position, maybe_position_z, mut options) in
+    for (ent, mut options) in
         controllers.iter_mut()
     {
         if !options.enabled {
@@ -118,48 +148,11 @@ fn controller(
             continue;
         }
 
-        if let Some(mut position_z) = maybe_position_z {
-            if mapping.active(options.forward, &inputs) {
-                if let Some(transform) = maybe_transform {
-                    position_z.0 = (transform.translation.z - 1.0).ceil() as i32;
-                } else {
-                    position_z.0 -= 1;
-                }
-            }
-            if mapping.active(options.back, &inputs) {
-                if let Some(transform) = maybe_transform {
-                    position_z.0 = (transform.translation.z + 1.0).floor() as i32;
-                } else {
-                    position_z.0 -= 1;
-                }
-            }
-        }
-
-        if let Some(mut position) = maybe_position {
-            let translation = match maybe_transform {
-                Some(transform) => transform.translation.truncate(),
-                None => position.0.as_vec2(),
-            };
-
-            if mapping.active(options.left, &inputs) {
-                position.0.x = (translation.x - 1.0).ceil() as i32;
-            }
-            if mapping.active(options.right, &inputs) {
-                position.0.x = (translation.x + 1.0).floor() as i32;
-            }
-            if mapping.active(options.down, &inputs) {
-                position.0.y = (translation.y - 1.0).ceil() as i32;
-            }
-            if mapping.active(options.up, &inputs) {
-                position.0.y = (translation.y + 1.0).floor() as i32;
-            }
-        }
-
-        for &(label, trigger, _) in options.action.iter() {
-            if mapping.active(trigger, &inputs) && options.initialized {
-                action.send(ActionEvent {
+        for &(trigger, action) in options.actions.iter() {
+            if mapping.active(trigger, action.sticky, &inputs) && options.initialized {
+                actions.send(ActionEvent {
                     sender: ent,
-                    label,
+                    label: action.label,
                     target: None,
                 });
             }
@@ -433,9 +426,9 @@ impl InputItem {
 #[derive(Serialize, Deserialize)]
 #[serde(bound(deserialize = "'de: 'static"))]
 pub struct ActionInputs {
-    items: HashMap<&'static str, Vec<InputItem>>,
+    items: HashMap<ActionType, Vec<InputItem>>,
     #[serde(skip)]
-    prev: HashSet<&'static str>,
+    prev: HashSet<ActionType>,
     #[serde(skip)]
     last_used: LastControlType,
 }
@@ -443,57 +436,58 @@ pub struct ActionInputs {
 impl Default for ActionInputs {
     fn default() -> Self {
         use InputItem::*;
+        use ActionType::*;
         Self {
             items: HashMap::from_iter(vec![
                 (
-                    "menu",
+                    Menu,
                     vec![Key(KeyCode::Escape), Button(GamepadButtonType::Start)],
                 ),
                 (
-                    "zoom in",
+                    ZoomIn,
                     vec![
                         Key(KeyCode::PageUp),
                         Button(GamepadButtonType::RightTrigger2),
                     ],
                 ),
                 (
-                    "zoom out",
+                    ZoomOut,
                     vec![
                         Key(KeyCode::PageDown),
                         Button(GamepadButtonType::LeftTrigger2),
                     ],
                 ),
                 (
-                    "pan left",
+                    PanLeft,
                     vec![
                         Key(KeyCode::Left),
                         Axis(GamepadAxisType::RightStickX, false),
                     ],
                 ),
                 (
-                    "pan right",
+                    PanRight,
                     vec![
                         Key(KeyCode::Right),
                         Axis(GamepadAxisType::RightStickX, true),
                     ],
                 ),
                 (
-                    "pan up",
+                    PanUp,
                     vec![Key(KeyCode::Up), Axis(GamepadAxisType::RightStickY, true)],
                 ),
                 (
-                    "pan down",
+                    PanDown,
                     vec![
                         Key(KeyCode::Down),
                         Axis(GamepadAxisType::RightStickY, false),
                     ],
                 ),
                 (
-                    "select all",
+                    PanFocus,
                     vec![Key(KeyCode::P), Button(GamepadButtonType::RightThumb)],
                 ),
                 (
-                    "move left",
+                    MoveLeft,
                     vec![
                         Key(KeyCode::A),
                         Axis(GamepadAxisType::LeftStickX, false),
@@ -501,7 +495,7 @@ impl Default for ActionInputs {
                     ],
                 ),
                 (
-                    "move right",
+                    MoveRight,
                     vec![
                         Key(KeyCode::D),
                         Axis(GamepadAxisType::LeftStickX, true),
@@ -509,7 +503,7 @@ impl Default for ActionInputs {
                     ],
                 ),
                 (
-                    "move up",
+                    MoveUp,
                     vec![
                         Key(KeyCode::W),
                         Axis(GamepadAxisType::LeftStickY, true),
@@ -517,7 +511,7 @@ impl Default for ActionInputs {
                     ],
                 ),
                 (
-                    "move down",
+                    MoveDown,
                     vec![
                         Key(KeyCode::S),
                         Axis(GamepadAxisType::LeftStickY, false),
@@ -525,7 +519,7 @@ impl Default for ActionInputs {
                     ],
                 ),
                 (
-                    "main action",
+                    MainAction,
                     vec![
                         Key(KeyCode::Space),
                         Key(KeyCode::Return),
@@ -533,23 +527,23 @@ impl Default for ActionInputs {
                     ],
                 ),
                 (
-                    "second action",
+                    SecondAction,
                     vec![Key(KeyCode::LControl), Button(GamepadButtonType::North)],
                 ),
                 (
-                    "third action",
+                    ThirdAction,
                     vec![Key(KeyCode::Home), Button(GamepadButtonType::West)],
                 ),
                 (
-                    "fourth action",
+                    FourthAction,
                     vec![Key(KeyCode::End), Button(GamepadButtonType::East)],
                 ),
                 (
-                    "turn left",
+                    TurnLeft,
                     vec![Key(KeyCode::Q), Button(GamepadButtonType::LeftTrigger)],
                 ),
                 (
-                    "turn right",
+                    TurnRight,
                     vec![Key(KeyCode::E), Button(GamepadButtonType::RightTrigger)],
                 ),
             ]),
@@ -560,26 +554,26 @@ impl Default for ActionInputs {
 }
 
 impl ActionInputs {
-    pub fn active(&mut self, action: (&'static str, bool), inputs: &InputParams) -> bool {
-        if !action.1 {
-            return self.check_active(action.0, inputs);
+    pub fn active(&mut self, action: ActionType, sticky: bool, inputs: &InputParams) -> bool {
+        if !sticky {
+            return self.check_active(action, inputs);
         }
 
-        let is_active = self.check_active(action.0, inputs);
+        let is_active = self.check_active(action, inputs);
         if is_active {
-            if !self.prev.contains(action.0) {
-                self.prev.insert(action.0);
+            if !self.prev.contains(&action) {
+                self.prev.insert(action);
                 return true;
             }
             return false;
         } else {
-            self.prev.remove(action.0);
+            self.prev.remove(&action);
             return false;
         }
     }
 
-    fn check_active(&mut self, action: &'static str, inputs: &InputParams) -> bool {
-        let Some(items) = self.items.get(action) else {
+    fn check_active(&mut self, action: ActionType, inputs: &InputParams) -> bool {
+        let Some(items) = self.items.get(&action) else {
             return false;
         };
 
@@ -643,15 +637,15 @@ impl ActionInputs {
     }
 }
 
-fn show_action(actions: &ActionInputs, ui: &mut egui::Ui, item: &'static str, action: String, prefer_keyboard: bool) {
-    if let Some(input) = actions.items.get(item).and_then(|v| {
+fn show_action(actions: &ActionInputs, ui: &mut egui::Ui, item: ActionType, action: Option<ActionLabel>, prefer_keyboard: bool) {
+    if let Some(input) = actions.items.get(&item).and_then(|v| {
         v.iter().find(|i| {
             matches!(i, InputItem::Key(_)) == prefer_keyboard
         })
     }) {
         ui.horizontal(|ui| {
-            if action != "" {
-                ui.label(format!("{}: ", action));
+            if let Some(action) = action {
+                ui.label(format!("{}: ", action.0));
             }
 
             input.print(ui);
@@ -659,7 +653,7 @@ fn show_action(actions: &ActionInputs, ui: &mut egui::Ui, item: &'static str, ac
     }
 }
 
-fn show_directions(actions: &ActionInputs, controller: &Controller, ui: &mut egui::Ui, prefer_keyboard: bool) {
+fn show_directions(actions: &ActionInputs, directions: &DisplayDirections, ui: &mut egui::Ui, prefer_keyboard: bool) {
     ui.style_mut().spacing.item_spacing = egui::vec2(0.0, 0.0);
     let sz_y = egui_extras::Size::exact(23.0);
     let sz_x = egui_extras::Size::exact(30.0);
@@ -668,7 +662,7 @@ fn show_directions(actions: &ActionInputs, controller: &Controller, ui: &mut egu
             strip.sizes(sz_x, 3).horizontal(|mut col| {
                 col.empty();
                 col.cell(|ui| {
-                    show_action(actions, ui, controller.up.0, "".into(), prefer_keyboard);
+                    show_action(actions, ui, directions.up, None, prefer_keyboard);
                 });
                 col.empty();
             });
@@ -676,17 +670,17 @@ fn show_directions(actions: &ActionInputs, controller: &Controller, ui: &mut egu
         row.strip(|strip| {
             strip.sizes(sz_x, 3).horizontal(|mut col| {
                 col.cell(|ui| {
-                    show_action(actions, ui, controller.left.0, "".into(), prefer_keyboard);
+                    show_action(actions, ui, directions.left, None, prefer_keyboard);
                 });
                 col.cell(|ui| {
                     ui.horizontal_centered(|ui| {
                         ui.vertical_centered(|ui| {
-                            ui.label(controller.display_directions.unwrap());
+                            ui.label(&directions.label);
                         });
                     });
                 });
                 col.cell(|ui| {
-                    show_action(actions, ui, controller.right.0, "".into(), prefer_keyboard);
+                    show_action(actions, ui, directions.right, None, prefer_keyboard);
                 });
             });
         });
@@ -694,7 +688,7 @@ fn show_directions(actions: &ActionInputs, controller: &Controller, ui: &mut egu
             strip.sizes(sz_x, 3).horizontal(|mut col| {
                 col.empty();
                 col.cell(|ui| {
-                    show_action(actions, ui, controller.down.0, "".into(), prefer_keyboard);
+                    show_action(actions, ui, directions.down, None, prefer_keyboard);
                 });
                 col.empty();
             });
@@ -719,22 +713,15 @@ fn show_controls(
             let mut enabled_controllers = controllers.iter().filter(|c| c.enabled).collect::<Vec<_>>();
             enabled_controllers.sort_by_key(|c| c.display_order);
             for (i, &controller) in enabled_controllers.iter().enumerate() {
-                if controller.display_directions.is_some() {
+                if let Some(directions) = &controller.display_directions {
                     ui.scope(|ui| {
-                        show_directions(&*actions, controller, ui, prefer_keyboard)
+                        show_directions(&*actions, directions, ui, prefer_keyboard);
                     });
-
-                    if controller.back.0 != "" {
-                        show_action(&*actions, ui, controller.back.0, "zoom out".into(), prefer_keyboard);
-                    }
-                    if controller.forward.0 != "" {
-                        show_action(&*actions, ui, controller.forward.0, "zoom in".into(), prefer_keyboard);
-                    }
                 }
 
-                for (action, (item, _), display) in controller.action.iter() {
-                    if *display {
-                        show_action(&*actions, ui, item, action.to_string(), prefer_keyboard);
+                for (action_type, action) in controller.actions.iter() {
+                    if action.display {
+                        show_action(&*actions, ui, *action_type, Some(action.label), prefer_keyboard);
                     }
                 }
 

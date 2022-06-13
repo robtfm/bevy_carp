@@ -26,7 +26,7 @@ const PLANK_Z_HILIGHTED: f32 = 0.75;
 const PLANK_Z_DONE: f32 = 0.25;
 
 use bevy_pkv::PkvStore;
-use input::{Controller, InputPlugin};
+use input::{Controller, InputPlugin, ActionType, Action, DisplayDirections};
 use menus::{spawn_in_level_menu, spawn_main_menu, spawn_play_menu, spawn_popup_menu};
 use rand::{prelude::SliceRandom, thread_rng, Rng, SeedableRng};
 
@@ -64,7 +64,7 @@ use serde::{Deserialize, Serialize};
 use shader::SimpleTextureMaterial;
 use structs::{
     ActionEvent, ChangeBackground, GrabDropChannel, HammerChannel, LevelDef, MenuChannel,
-    Permanent, PopupMenuEvent, PositionZ, SpawnLevelEvent, UndoChannel, LevelSet,
+    Permanent, PopupMenuEvent, PositionZ, SpawnLevelEvent, UndoChannel, LevelSet, ActionLabel,
 };
 use wood_material::{WoodMaterial, WoodMaterialPlugin, WoodMaterialSpec};
 
@@ -185,6 +185,7 @@ fn main() {
         .add_system(draw_cuts.before(extend_cut)) // despawns but only things it is the only user of
         .add_system(hammer_home)
         .add_system(ensure_focus)
+        .add_system(update_positions.before(update_transforms))
         .add_system(update_transforms)
         // visuals
         .add_system(update_materials)
@@ -214,7 +215,7 @@ struct ResetEvent {
 fn splash(mut evs: EventWriter<ActionEvent>) {
     evs.send(ActionEvent {
         sender: Entity::from_raw(0),
-        label: "main menu",
+        label: ActionLabel("main menu"),
         target: None,
     });
 }
@@ -431,7 +432,7 @@ fn setup_level(
         *def = ev.def.clone();
         action_evs.send(ActionEvent {
             sender: Entity::from_raw(0),
-            label: "restart",
+            label: ActionLabel("restart"),
             target: None,
         });
         commands.insert_resource(UndoBuffer::new(base.0.clone()));
@@ -482,10 +483,10 @@ fn create_level(
 
         commands.spawn().insert(Controller {
             display_order: 0,
-            action: vec![
-                ("pause", ("menu", true), true),
-                ("undo", ("third action", true), true),
-                ("redo", ("fourth action", true), true),
+            actions: vec![
+                (ActionType::Menu, Action{ label: ActionLabel("pause"), sticky: true, display: true }),
+                (ActionType::ThirdAction, Action{ label: ActionLabel("undo"), sticky: true, display: true }),
+                (ActionType::FourthAction, Action{ label: ActionLabel("redo"), sticky: true, display: true }),
             ],
             enabled: true,
             ..Default::default()
@@ -545,15 +546,17 @@ fn create_level(
             .insert(PositionOffset(Vec2::new(0.01, 0.01)))
             .insert(Controller {
                 display_order: 1,
-                display_directions: Some("Pan"),
+                display_directions: Some(DisplayDirections{ label: "pan".into(), up: ActionType::PanUp, down: ActionType::PanDown, left: ActionType::PanLeft, right: ActionType::PanRight }),
                 enabled: true,
-                forward: ("zoom in", false),
-                back: ("zoom out", false),
-                left: ("pan left", false),
-                right: ("pan right", false),
-                up: ("pan up", false),
-                down: ("pan down", false),
-                action: vec![("focus", ("select all", true), true)],
+                actions: vec![
+                    (ActionType::PanUp, Action{ label: ActionLabel("up"), sticky: false, display: false }),
+                    (ActionType::PanDown, Action{ label: ActionLabel("down"), sticky: false, display: false }),
+                    (ActionType::PanLeft, Action{ label: ActionLabel("left"), sticky: false, display: false }),
+                    (ActionType::PanRight, Action{ label: ActionLabel("right"), sticky: false, display: false }),
+                    (ActionType::ZoomIn, Action{ label: ActionLabel("forward"), sticky: false, display: true }),
+                    (ActionType::ZoomOut, Action{ label: ActionLabel("backward"), sticky: false, display: true }),
+                    (ActionType::PanFocus, Action{ label: ActionLabel("focus"), sticky: true, display: true }),
+                ],
                 ..Default::default()
             })
             .id();
@@ -569,15 +572,15 @@ fn create_level(
             .insert(Cursor)
             .insert(Controller {
                 display_order: 2,
-                display_directions: Some("Move"),
+                display_directions: Some(DisplayDirections{ label: "move".into(), up: ActionType::MoveUp, down: ActionType::MoveDown, left: ActionType::MoveLeft, right: ActionType::MoveRight }),
                 enabled: true,
-                left: ("move left", false),
-                right: ("move right", false),
-                up: ("move up", false),
-                down: ("move down", false),
-                action: vec![
-                    ("grab", ("main action", true), true),
-                    ("cut", ("second action", true), true),
+                actions: vec![
+                    (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: false, display: false }),
+                    (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: false, display: false }),
+                    (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: false, display: false }),
+                    (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: false, display: false }),
+                    (ActionType::MainAction, Action{ label: ActionLabel("grab"), sticky: true, display: true }),
+                    (ActionType::SecondAction, Action{ label: ActionLabel("cut"), sticky: true, display: true }),
                 ],
                 ..Default::default()
             })
@@ -608,7 +611,7 @@ fn create_level(
 
         focus.send(ActionEvent {
             sender: cam_id,
-            label: "focus",
+            label: ActionLabel("focus"),
             target: None,
         });
     }
@@ -625,6 +628,65 @@ struct PositionOffset(Vec2);
 
 #[derive(Component, Default)]
 struct PrevPosition(pub IVec2);
+
+fn update_positions(
+    mut mobiles: Query<(
+        Option<&Transform>,
+        Option<&mut Position>,
+        Option<&mut PositionZ>,
+        Option<&PositionOffset>,
+    )>,
+    mut events: EventReader<ActionEvent>,
+) {
+    for ev in events.iter() {
+        if let Ok((maybe_transform, maybe_position, maybe_position_z, maybe_offset)) = mobiles.get_mut(ev.sender) {
+            let mut translation = match (maybe_transform, maybe_position.as_ref(), maybe_position_z.as_ref()) {
+                (Some(transform), ..) => transform.translation,
+                (None, Some(position), Some(pos_z)) => position.0.extend(pos_z.0).as_vec3(),
+                (None, Some(position), None) => position.0.extend(0).as_vec3(),
+                _ => continue
+            };
+
+            if let Some(offset) = maybe_offset {
+                translation -= offset.0.extend(0.0);
+            }
+
+            match ev.label.0 {
+                "forward" => {
+                    if let Some(mut position_z) = maybe_position_z {
+                        position_z.0 = (translation.z - 1.0).ceil() as i32;
+                    } 
+                }
+                "backward" => {
+                    if let Some(mut position_z) = maybe_position_z {
+                        position_z.0 = (translation.z + 1.0).floor() as i32;
+                    }
+                }
+                "left" => {
+                    if let Some(mut position) = maybe_position {
+                        position.0.x = (translation.x - 1.0).ceil() as i32;
+                    }
+                }
+                "right" => {
+                    if let Some(mut position) = maybe_position {
+                        position.0.x = (translation.x + 1.0).floor() as i32;
+                    }
+                }
+                "down" => {
+                    if let Some(mut position) = maybe_position {
+                        position.0.y = (translation.y - 1.0).ceil() as i32;
+                    }
+                }
+                "up" => {
+                    if let Some(mut position) = maybe_position {
+                        position.0.y = (translation.y + 1.0).floor() as i32;
+                    }
+                }
+                _ => continue
+            }
+        }
+    }
+}
 
 fn update_transforms(
     time: Res<Time>,
@@ -754,7 +816,7 @@ fn camera_focus(
     all: Query<(Entity, &Position, &ExtentItem)>,
 ) {
     for ev in evs.iter() {
-        if ev.label == "focus" {
+        if ev.label.0 == "focus" {
             if let Ok((mut pos, mut z, cam)) = cam.get_mut(ev.sender) {
                 let mut min_x = i32::MAX;
                 let mut max_x = i32::MIN;
@@ -824,14 +886,14 @@ fn ensure_focus(
         if let Ok(cursor) = cursor.get_single() {
             action.send(ActionEvent {
                 sender: cam,
-                label: "focus",
+                label: ActionLabel("focus"),
                 target: Some(cursor),
             });
         }
         for ent in selected.iter() {
             action.send(ActionEvent {
                 sender: cam,
-                label: "focus",
+                label: ActionLabel("focus"),
                 target: Some(ent),
             });
         }
@@ -847,7 +909,7 @@ fn grab_or_drop(
     audio: Res<AudioChannel<GrabDropChannel>>,
 ) {
     for ev in ev.iter() {
-        if ev.label == "grab" {
+        if ev.label.0 == "grab" {
             if let Ok((grab, mut trans)) = to_grab.get_single_mut() {
                 debug!("grab");
                 commands
@@ -857,13 +919,13 @@ fn grab_or_drop(
                     .insert(Controller {
                         display_order: 4,
                         enabled: true,
-                        left: ("move left", false),
-                        right: ("move right", false),
-                        up: ("move up", false),
-                        down: ("move down", false),
-                        action: vec![
-                            ("rotate left", ("turn left", true), true),
-                            ("rotate right", ("turn right", true), true),
+                        actions: vec![
+                            (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: false, display: false }),
+                            (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: false, display: false }),
+                            (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: false, display: false }),
+                            (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: false, display: false }),
+                            (ActionType::TurnLeft, Action{ label: ActionLabel("rotate left"), sticky: true, display: true }),
+                            (ActionType::TurnRight, Action{ label: ActionLabel("rotate right"), sticky: true, display: true }),
                         ],
                         ..Default::default()
                     });
@@ -909,7 +971,7 @@ fn rotate_plank(
     audio: Res<AudioChannel<SwooshChannel>>,
 ) {
     for ev in ev.iter() {
-        let dir = match ev.label {
+        let dir = match ev.label.0 {
             "rotate left" => 1,
             "rotate right" => 3,
             _ => continue,
@@ -1051,7 +1113,7 @@ fn cut_plank(
     mut last_cutter_pos: Local<IVec2>,
 ) {
     for ev in ev.iter() {
-        if ev.label == "cancel" {
+        if ev.label.0 == "cancel" {
             if let Ok((cutter, _cut, cutter_pos)) = cut.get(ev.sender) {
                 // currently cutting - cancel
                 debug!("cancel cut");
@@ -1074,7 +1136,7 @@ fn cut_plank(
             }
         }
 
-        if ev.label == "cut" {
+        if ev.label.0 == "cut" {
             if let Ok((_ent, plank_pos, plank)) = targeted.get_single() {
                 if let Ok(pos) = cursor_pos.get(ev.sender) {
                     debug!("begin cut");
@@ -1133,15 +1195,15 @@ fn cut_plank(
                         .insert(Cut::default())
                         .insert(Controller {
                             display_order: 3,
-                            display_directions: Some("Cut"),
+                            display_directions: Some(DisplayDirections{ label: "Cut".into(), up: ActionType::MoveUp, down: ActionType::MoveDown, left: ActionType::MoveLeft, right: ActionType::MoveRight }),
                             enabled: true,
-                            left: ("move left", false),
-                            right: ("move right", false),
-                            up: ("move up", false),
-                            down: ("move down", false),
-                            action: vec![
-                                ("finish cut", ("main action", true), true),
-                                ("cancel", ("second action", true), true),
+                            actions: vec![
+                                (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: false, display: false }),
+                                (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: false, display: false }),
+                                (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: false, display: false }),
+                                (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: false, display: false }),
+                                (ActionType::MainAction, Action{ label: ActionLabel("finish cut"), sticky: true, display: true }),
+                                (ActionType::SecondAction, Action{ label: ActionLabel("cancel"), sticky: true, display: true }),
                             ],
                             ..Default::default()
                         })
@@ -1167,7 +1229,7 @@ fn cut_plank(
             }
         }
 
-        if ev.label == "finish cut" {
+        if ev.label.0 == "finish cut" {
             if let Ok((cutter, cut, _cutter_pos)) = cut.get(ev.sender) {
                 if let Ok((selected_ent, pos, base_plank)) = targeted.get_single() {
                     if cut.finished {
@@ -1302,7 +1364,7 @@ fn change_state(
     let mut action_to_send = None;
 
     for ev in reader.iter(&actions) {
-        match ev.label {
+        match ev.label.0 {
             "undo" => {
                 debug!(
                     "wants back, forward: {}, back: {}",
@@ -1396,7 +1458,7 @@ fn change_state(
 
     if let Some(action) = action_to_send {
         actions.send(ActionEvent {
-            label: action,
+            label: ActionLabel(action),
             sender: Entity::from_raw(0),
             target: None,
         });
@@ -1934,14 +1996,14 @@ fn hammer_home(
                     }
 
                     let mut items = vec![
-                        ("Restart Level".into(), "restart", true),
-                        ("Main Menu".into(), "main menu", true),
-                        ("Quit to Desktop".into(), "quit", QUIT_TO_DESKTOP),
+                        ("Restart Level".into(), ActionLabel("restart"), true),
+                        ("Main Menu".into(), ActionLabel("main menu"), true),
+                        ("Quit to Desktop".into(), ActionLabel("quit"), QUIT_TO_DESKTOP),
                     ];
 
                     let next = levelset.current_level + 1;
 
-                    items.insert(0, ("Next Level".into(), "next level", next < 30));
+                    items.insert(0, ("Next Level".into(), ActionLabel("next level"), next < 30));
 
                     menu.send(PopupMenuEvent {
                         sender: Entity::from_raw(0),
@@ -1972,7 +2034,7 @@ fn system_events(
     mut reset_events: EventWriter<ResetEvent>,
 ) {
     for ev in ev.iter() {
-        match ev.label {
+        match ev.label.0 {
             "next level" => {
                 levelset.current_level += 1;
                 spawn_event.send(SpawnLevelEvent {
