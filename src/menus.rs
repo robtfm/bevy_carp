@@ -15,7 +15,7 @@ use crate::{
     structs::{
         ActionEvent, ChangeBackground, MenuItem, PopupMenu, PopupMenuEvent, Position, PositionZ, QUIT_TO_DESKTOP, ActionLabel,
     },
-    LevelDef, LevelSet, MenuChannel, Permanent, SpawnLevelEvent, SpawnPlank,
+    LevelDef, LevelSet, MenuChannel, Permanent, SpawnLevelEvent, SpawnPlank, window::{update_window, WindowModeSerial},
 };
 
 #[derive(Component)]
@@ -113,7 +113,7 @@ pub(crate) fn spawn_main_menu(
         menu: PopupMenu {
             items: vec![
                 ("Play".into(), ActionLabel("play"), true),
-                ("Options (tbd)".into(), ActionLabel("options"), false),
+                ("Options".into(), ActionLabel("options"), true),
                 ("Credits".into(), ActionLabel("credits"), true),
                 ("Quit to Desktop".into(), ActionLabel("quit"), QUIT_TO_DESKTOP),
             ],
@@ -603,5 +603,65 @@ pub fn spawn_popup_menu(
 
     if let Some(event) = to_send {
         actions.send(event);
+    }
+}
+
+pub fn spawn_options_menu(
+    mut evs: ResMut<Events<ActionEvent>>,
+    mut reader: Local<ManualEventReader<ActionEvent>>,
+    mut spawn: EventWriter<PopupMenuEvent>,
+    mut settings: ResMut<PkvStore>,
+    mut keep_position: Local<bool>,
+    mut windows: ResMut<Windows>,
+) {
+    let mut to_send = None;
+
+    for ev in reader.iter(&evs) {
+        match ev.label.0 {
+            "options" => {
+                let window_mode = match settings.get::<WindowModeSerial>("window mode").unwrap_or_default() {
+                    WindowModeSerial::Fullscreen => "Full screen",
+                    WindowModeSerial::Windowed => "Windowed",
+                };
+    
+                spawn.send(PopupMenuEvent{ 
+                    sender: Entity::from_raw(0), 
+                    menu: PopupMenu { 
+                        heading: "Options".into(), 
+                        items: vec![
+                            ("Window mode".into(), ActionLabel(""), false),
+                            (window_mode.into(), ActionLabel("toggle fullscreen"), true),
+                            ("".into(), ActionLabel(""), false),
+                            ("".into(), ActionLabel(""), false),
+                            ("".into(), ActionLabel(""), false),
+                            ("Ok".into(), ActionLabel("main menu"), true),
+                        ], 
+                        cancel_action: Some(ActionLabel("main menu")), 
+                        width: 2,
+                        initial_position: if *keep_position { -1 } else { 0 },
+                        ..Default::default()
+                    }, 
+                    sound: false,
+                });
+
+                *keep_position = false;
+            }
+            "toggle fullscreen" => {
+                let new_mode = match settings.get::<WindowModeSerial>("window mode").unwrap_or_default() {
+                    WindowModeSerial::Fullscreen => WindowModeSerial::Windowed,
+                    WindowModeSerial::Windowed => WindowModeSerial::Fullscreen,
+                };
+
+                settings.set("window mode", &new_mode).unwrap();
+                update_window(&*settings, windows.get_primary_mut().unwrap());
+                *keep_position = true;
+                to_send = Some(ActionEvent { sender: Entity::from_raw(0), label: ActionLabel("options"), target: None });
+            }
+            _ => ()
+        }
+    }
+
+    if let Some(action) = to_send {
+        evs.send(action);
     }
 }

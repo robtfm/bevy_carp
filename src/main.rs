@@ -39,7 +39,7 @@ use bevy::{
         render_resource::{Extent3d, TextureDimension},
     },
     utils::{HashMap, HashSet},
-    window::{WindowMode, WindowResized},
+    window::{WindowResized}, log::LogSettings,
 };
 
 use bevy_egui::{
@@ -56,48 +56,24 @@ mod model;
 mod shader;
 mod structs;
 mod wood_material;
+mod window;
 
 use bl_quad::BLQuad;
 use model::*;
 use rand_pcg::Pcg32;
-use serde::{Deserialize, Serialize};
 use shader::SimpleTextureMaterial;
 use structs::{
     ActionEvent, ChangeBackground, GrabDropChannel, HammerChannel, LevelDef, MenuChannel,
     Permanent, PopupMenuEvent, PositionZ, SpawnLevelEvent, UndoChannel, LevelSet, ActionLabel,
 };
+use window::{WindowModeSerial, descriptor_from_settings};
 use wood_material::{WoodMaterial, WoodMaterialPlugin, WoodMaterialSpec};
 
 use crate::{
     background::BackgroundPlugin,
-    menus::spawn_credits,
+    menus::{spawn_credits, spawn_options_menu},
     structs::{CutChannel, PopupMenu, Position, SwooshChannel, QUIT_TO_DESKTOP},
 };
-
-#[derive(Serialize, Deserialize)]
-enum WindowModeSerial {
-    Fullscreen,
-    Windowed,
-}
-
-impl From<WindowModeSerial> for WindowMode {
-    fn from(mode: WindowModeSerial) -> Self {
-        match mode {
-            WindowModeSerial::Fullscreen => WindowMode::BorderlessFullscreen,
-            WindowModeSerial::Windowed => WindowMode::Windowed,
-        }
-    }
-}
-
-impl From<WindowMode> for WindowModeSerial {
-    fn from(mode: WindowMode) -> Self {
-        match mode {
-            WindowMode::BorderlessFullscreen => WindowModeSerial::Fullscreen,
-            WindowMode::Windowed => WindowModeSerial::Windowed,
-            _ => WindowModeSerial::Windowed,
-        }
-    }
-}
 
 fn main() {
     // stage conventions to avoid adding components to despawned entities:
@@ -107,30 +83,15 @@ fn main() {
 
     let settings = PkvStore::new("robtfm", "measure once");
 
-    let (width, height) = match settings.get("window size") {
-        Ok(d) => d,
-        Err(_) => (1280.0, 720.0),
-    };
-    let window_pos = settings.get("window pos").ok();
-    let mode = settings
-        .get::<WindowModeSerial>("window mode")
-        .unwrap_or(WindowModeSerial::Windowed)
-        .into();
-
-    let window_descriptor = WindowDescriptor {
-        width,
-        height,
-        position: window_pos,
-        mode,
-        cursor_visible: false,
-        title: "Measure Once".into(),
-        ..Default::default()
-    };
-
-    println!("window desc: {:?}", window_descriptor);
+    let window_descriptor = descriptor_from_settings(&settings);
 
     let mut app = App::new();
-    app.insert_resource(window_descriptor)
+    app
+        .insert_resource(window_descriptor)
+        .insert_resource(LogSettings {
+            level: bevy::log::Level::INFO,
+            filter: "wgpu=error,symphonia=error".to_string(),
+        })
         .add_plugins(DefaultPlugins)
         .add_plugin(WoodMaterialPlugin)
         .add_plugin(EguiPlugin)
@@ -173,6 +134,7 @@ fn main() {
         .add_system(spawn_in_level_menu)
         .add_system(spawn_credits)
         .add_system(spawn_popup_menu)
+        .add_system(spawn_options_menu)
         // setup level
         .add_system(setup_level) // generate the level from the def
         .add_system_to_stage(CoreStage::PreUpdate, create_level) // (re)spawn a level. should have its own stage really
@@ -299,11 +261,14 @@ fn handle_window_resize(
             f32::min(window.height() / 720.0, window.width() / 1280.0) as f64,
         );
 
-        settings
-            .set("window size", &(window.width(), window.height()))
-            .unwrap();
-        if let Some(pos) = window.position() {
-            settings.set("window pos", &pos).unwrap();
+        if settings.get::<WindowModeSerial>("window mode").unwrap() != WindowModeSerial::Fullscreen {
+            settings
+                .set("window size", &(window.width(), window.height()))
+                .unwrap();
+            if let Some(pos) = window.position() {
+                settings.set("window pos", &pos).unwrap();
+            }
+            println!("store: {}/{}",  window.width(), window.height());
         }
     }
 

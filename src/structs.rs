@@ -53,6 +53,7 @@ pub struct PopupMenu {
     pub header_size: f32,
     pub width: usize,
     pub footer: String,
+    pub initial_position: i32, //  -1 -> prev position
 }
 
 impl Default for PopupMenu {
@@ -65,6 +66,7 @@ impl Default for PopupMenu {
             header_size: 0.35,
             width: 1,
             footer: "".into(),
+            initial_position: 0,
         }
     }
 }
