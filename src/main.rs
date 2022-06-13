@@ -64,7 +64,7 @@ use serde::{Deserialize, Serialize};
 use shader::SimpleTextureMaterial;
 use structs::{
     ActionEvent, ChangeBackground, GrabDropChannel, HammerChannel, LevelDef, MenuChannel,
-    Permanent, PopupMenuEvent, PositionZ, SpawnLevelEvent, UndoChannel,
+    Permanent, PopupMenuEvent, PositionZ, SpawnLevelEvent, UndoChannel, LevelSet,
 };
 use wood_material::{WoodMaterial, WoodMaterialPlugin, WoodMaterialSpec};
 
@@ -310,14 +310,6 @@ fn handle_window_resize(
     events_2.iter().count();
 }
 
-#[derive(Default, Clone)]
-pub struct LevelSet {
-    levels: [LevelDef; 30],
-    current_level: usize,
-    title: String,
-    settings_key: &'static str,
-}
-
 fn spawn_random(
     total: usize,
     skip: usize,
@@ -550,6 +542,7 @@ fn create_level(
             })
             .insert(cam_pos)
             .insert(cam_z)
+            .insert(PositionOffset(Vec2::new(0.01, 0.01)))
             .insert(Controller {
                 display_order: 1,
                 display_directions: Some("Pan"),
@@ -628,6 +621,9 @@ struct ExtentItem(IVec2, IVec2);
 struct MoveSpeed(f32);
 
 #[derive(Component)]
+struct PositionOffset(Vec2);
+
+#[derive(Component, Default)]
 struct PrevPosition(pub IVec2);
 
 fn update_transforms(
@@ -636,42 +632,45 @@ fn update_transforms(
         &mut Transform,
         &Position,
         Option<&PositionZ>,
+        Option<&PositionOffset>,
         Option<&MoveSpeed>,
     )>,
 ) {
-    for (mut transform, position, maybe_posz, maybe_speed) in q.iter_mut() {
+    for (mut transform, position, maybe_posz, maybe_offset, maybe_speed) in q.iter_mut() {
+        let position = position.0.as_vec2() + maybe_offset.map(|o| o.0).unwrap_or_default();
+
         let speed = maybe_speed.unwrap_or(&MoveSpeed(15.0)).0;
-        if transform.translation.x < position.0.x as f32 {
+        if transform.translation.x < position.x as f32 {
             transform.translation.x = f32::min(
-                position.0.x as f32,
+                position.x as f32,
                 transform.translation.x
                     + time.delta_seconds()
-                        * f32::max(1.0, position.0.x as f32 - transform.translation.x)
+                        * f32::max(1.0, position.x - transform.translation.x)
                         * speed,
             );
         } else {
             transform.translation.x = f32::max(
-                position.0.x as f32,
+                position.x as f32,
                 transform.translation.x
                     - time.delta_seconds()
-                        * f32::max(1.0, transform.translation.x - position.0.x as f32)
+                        * f32::max(1.0, transform.translation.x - position.x)
                         * speed,
             );
         }
-        if transform.translation.y < position.0.y as f32 {
+        if transform.translation.y < position.y as f32 {
             transform.translation.y = f32::min(
-                position.0.y as f32,
+                position.y as f32,
                 transform.translation.y
                     + time.delta_seconds()
-                        * f32::max(1.0, position.0.y as f32 - transform.translation.y)
+                        * f32::max(1.0, position.y - transform.translation.y)
                         * speed,
             );
         } else {
             transform.translation.y = f32::max(
-                position.0.y as f32,
+                position.y as f32,
                 transform.translation.y
                     - time.delta_seconds()
-                        * f32::max(1.0, transform.translation.y - position.0.y as f32)
+                        * f32::max(1.0, transform.translation.y - position.y)
                         * speed,
             );
         }

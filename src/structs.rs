@@ -19,6 +19,14 @@ pub struct LevelDef {
     pub seed: u64,
 }
 
+#[derive(Default, Clone)]
+pub struct LevelSet {
+    pub levels: [LevelDef; 30],
+    pub current_level: usize,
+    pub title: String,
+    pub settings_key: &'static str,
+}
+
 pub struct SpawnLevelEvent {
     pub def: LevelDef,
 }

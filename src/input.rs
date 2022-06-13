@@ -10,7 +10,7 @@ use bevy::{
 use bevy_egui::{egui, EguiContext};
 use egui_extras::StripBuilder;
 
-use crate::structs::{ActionEvent, Position, PositionZ};
+use crate::{structs::{ActionEvent, Position, PositionZ, LevelDef}, LevelSet};
 
 pub struct InputPlugin;
 
@@ -22,6 +22,7 @@ impl Plugin for InputPlugin {
             .add_event::<ActionEvent>()
             // ui
             .add_system(show_controls)
+            .add_system(show_status)
             // input
             .add_system(pad_connection)
             .add_system_to_stage(CoreStage::PreUpdate, controller);
@@ -642,30 +643,73 @@ impl ActionInputs {
     }
 }
 
+fn show_action(actions: &ActionInputs, ui: &mut egui::Ui, item: &'static str, action: String, prefer_keyboard: bool) {
+    if let Some(input) = actions.items.get(item).and_then(|v| {
+        v.iter().find(|i| {
+            matches!(i, InputItem::Key(_)) == prefer_keyboard
+        })
+    }) {
+        ui.horizontal(|ui| {
+            if action != "" {
+                ui.label(format!("{}: ", action));
+            }
+
+            input.print(ui);
+        });
+    }
+}
+
+fn show_directions(actions: &ActionInputs, controller: &Controller, ui: &mut egui::Ui, prefer_keyboard: bool) {
+    ui.style_mut().spacing.item_spacing = egui::vec2(0.0, 0.0);
+    let sz_y = egui_extras::Size::exact(23.0);
+    let sz_x = egui_extras::Size::exact(30.0);
+    StripBuilder::new(ui).sizes(sz_y, 3).vertical(|mut row| {
+        row.strip(|strip| {
+            strip.sizes(sz_x, 3).horizontal(|mut col| {
+                col.empty();
+                col.cell(|ui| {
+                    show_action(actions, ui, controller.up.0, "".into(), prefer_keyboard);
+                });
+                col.empty();
+            });
+        });
+        row.strip(|strip| {
+            strip.sizes(sz_x, 3).horizontal(|mut col| {
+                col.cell(|ui| {
+                    show_action(actions, ui, controller.left.0, "".into(), prefer_keyboard);
+                });
+                col.cell(|ui| {
+                    ui.horizontal_centered(|ui| {
+                        ui.vertical_centered(|ui| {
+                            ui.label(controller.display_directions.unwrap());
+                        });
+                    });
+                });
+                col.cell(|ui| {
+                    show_action(actions, ui, controller.right.0, "".into(), prefer_keyboard);
+                });
+            });
+        });
+        row.strip(|strip| {
+            strip.sizes(sz_x, 3).horizontal(|mut col| {
+                col.empty();
+                col.cell(|ui| {
+                    show_action(actions, ui, controller.down.0, "".into(), prefer_keyboard);
+                });
+                col.empty();
+            });
+        });
+    });
+}
+
 fn show_controls(
     mut egui_context: ResMut<EguiContext>,
     controllers: Query<&Controller>,
     actions: Res<ActionInputs>,
     last_used: Res<LastControlType>,
 ) {
-    let add = |ui: &mut egui::Ui, item: &'static str, action: String| {
-        if let Some(input) = actions.items.get(item).and_then(|v| {
-            v.iter().find(|i| {
-                matches!(i, InputItem::Key(_)) == (*last_used == LastControlType::Keyboard)
-            })
-        }) {
-            ui.horizontal(|ui| {
-                if action != "" {
-                    ui.label(format!("{}: ", action));
-                }
+    let prefer_keyboard = *last_used == LastControlType::Keyboard;
 
-                input.print(ui);
-            });
-        }
-    };
-
-    let sz_y = egui_extras::Size::exact(23.0);
-    let sz_x = egui_extras::Size::exact(30.0);
     egui::Window::new("controls")
         .anchor(egui::Align2::RIGHT_TOP, (-5.0, 5.0))
         .title_bar(false)
@@ -675,59 +719,22 @@ fn show_controls(
             let mut enabled_controllers = controllers.iter().filter(|c| c.enabled).collect::<Vec<_>>();
             enabled_controllers.sort_by_key(|c| c.display_order);
             for (i, &controller) in enabled_controllers.iter().enumerate() {
-                if let Some(disp) = controller.display_directions {
+                if controller.display_directions.is_some() {
                     ui.scope(|ui| {
-                        ui.style_mut().spacing.item_spacing = egui::vec2(0.0, 0.0);
-                        StripBuilder::new(ui).sizes(sz_y, 3).vertical(|mut row| {
-                            row.strip(|strip| {
-                                strip.sizes(sz_x, 3).horizontal(|mut col| {
-                                    col.empty();
-                                    col.cell(|ui| {
-                                        add(ui, controller.up.0, "".into());
-                                    });
-                                    col.empty();
-                                });
-                            });
-                            row.strip(|strip| {
-                                strip.sizes(sz_x, 3).horizontal(|mut col| {
-                                    col.cell(|ui| {
-                                        add(ui, controller.left.0, "".into());
-                                    });
-                                    col.cell(|ui| {
-                                        ui.horizontal_centered(|ui| {
-                                            ui.vertical_centered(|ui| {
-                                                ui.label(disp);
-                                            });
-                                        });
-                                    });
-                                    col.cell(|ui| {
-                                        add(ui, controller.right.0, "".into());
-                                    });
-                                });
-                            });
-                            row.strip(|strip| {
-                                strip.sizes(sz_x, 3).horizontal(|mut col| {
-                                    col.empty();
-                                    col.cell(|ui| {
-                                        add(ui, controller.down.0, "".into());
-                                    });
-                                    col.empty();
-                                });
-                            });
-                        });
+                        show_directions(&*actions, controller, ui, prefer_keyboard)
                     });
 
                     if controller.back.0 != "" {
-                        add(ui, controller.back.0, "zoom out".into());
+                        show_action(&*actions, ui, controller.back.0, "zoom out".into(), prefer_keyboard);
                     }
                     if controller.forward.0 != "" {
-                        add(ui, controller.forward.0, "zoom in".into());
+                        show_action(&*actions, ui, controller.forward.0, "zoom in".into(), prefer_keyboard);
                     }
                 }
 
                 for (action, (item, _), display) in controller.action.iter() {
                     if *display {
-                        add(ui, item, action.to_string());
+                        show_action(&*actions, ui, item, action.to_string(), prefer_keyboard);
                     }
                 }
 
@@ -736,4 +743,21 @@ fn show_controls(
                 }
             }
         });
+}
+
+fn show_status(
+    mut egui_context: ResMut<EguiContext>,
+    set: Res<LevelSet>,
+    def: Res<LevelDef>,
+) {
+    if def.num_holes != 0 {
+        egui::Window::new("status")
+        .title_bar(false)
+        .resizable(false)
+        .show(egui_context.ctx_mut(), |ui| {
+            ui.set_max_width(100.0);
+            ui.label(&set.title);
+            ui.label(format!("{}/{}", set.current_level+1, 30));
+        });
+    }
 }

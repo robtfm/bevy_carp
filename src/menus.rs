@@ -32,6 +32,7 @@ pub(crate) fn spawn_main_menu(
     images: Res<Assets<Image>>,
     server: Res<AssetServer>,
     mut handle: Local<Option<Handle<Image>>>,
+    mut def: ResMut<LevelDef>,
 ) {
     let mut run = false;
 
@@ -44,6 +45,8 @@ pub(crate) fn spawn_main_menu(
     if !run {
         return;
     }
+
+    def.num_holes = 0;
 
     let handle = handle.get_or_insert_with(|| server.load("images/title.png"));
 
@@ -227,10 +230,10 @@ pub fn spawn_play_menu(
                     menu: PopupMenu {
                         heading: "Choose Difficulty".into(),
                         items: vec![
-                            ("Daily Mix".into(), "play daily", true),
                             ("Easy".into(), "play easy", true),
                             ("Medium".into(), "play medium", true),
                             ("Hard".into(), "play hard", true),
+                            ("Daily Mix".into(), "play daily", true),
                         ],
                         cancel_action: Some("main menu"),
                         ..Default::default()
@@ -241,7 +244,7 @@ pub fn spawn_play_menu(
             }
             "play easy" => {
                 key = "Easy";
-                *levelset = spawn_random(90, 0, "Easy Set".into(), 25, key);
+                *levelset = spawn_random(90, 0, "Easy Set".into(), 11, key);
             }
             "play medium" => {
                 key = "Medium";
