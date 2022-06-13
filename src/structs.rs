@@ -90,3 +90,5 @@ pub struct ChangeBackground;
 pub const QUIT_TO_DESKTOP: bool = true;
 #[cfg(target_arch = "wasm32")]
 pub const QUIT_TO_DESKTOP: bool = false;
+
+pub struct ControlHelp(pub bool);

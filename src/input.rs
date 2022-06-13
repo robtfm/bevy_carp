@@ -10,7 +10,7 @@ use bevy::{
 use bevy_egui::{egui, EguiContext};
 use egui_extras::StripBuilder;
 
-use crate::{structs::{ActionEvent, LevelDef, ActionLabel}, LevelSet};
+use crate::{structs::{ActionEvent, LevelDef, ActionLabel, ControlHelp}, LevelSet};
 
 pub struct InputPlugin;
 
@@ -71,10 +71,17 @@ fn pad_connection(mut pad: ResMut<GamePadRes>, mut gamepad_event: EventReader<Ga
 }
 
 #[derive(Clone, Copy)]
+pub enum DisplayMode {
+    Off,
+    Active,
+    Inactive,
+}
+
+#[derive(Clone, Copy)]
 pub struct Action {
     pub label: ActionLabel,
     pub sticky: bool,
-    pub display: bool,
+    pub display: DisplayMode,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -192,9 +199,14 @@ fn key_text(k: &KeyCode) -> String {
 }
 
 impl InputItem {
-    pub fn print(&self, ui: &mut egui::Ui) {
-        fn draw_key(text: String, ui: &mut egui::Ui) {
-            let galley = egui::WidgetText::RichText(text.into()).into_galley(
+    pub fn print(&self, ui: &mut egui::Ui, active: bool) {
+        let color = match active {
+            true => egui::Color32::from_rgb(255,255,255),
+            false => egui::Color32::from_rgb(50,50,100),
+        };
+
+        fn draw_key(text: String, ui: &mut egui::Ui, color: egui::Color32) {
+            let galley = egui::WidgetText::RichText(text.into()).color(color).into_galley(
                 ui,
                 Some(false),
                 0.0,
@@ -207,7 +219,6 @@ impl InputItem {
             let tl = rect.left_top();
             let w = rect.width();
             let h = rect.height();
-            let color = egui::Color32::from_gray(255);
             let stroke = egui::Stroke::new(1.0, color);
             painter.line_segment(
                 [tl + egui::vec2(8.0, 1.0), tl + egui::vec2(w - 8.0, 1.0)],
@@ -241,7 +252,7 @@ impl InputItem {
         }
 
         fn draw_thumb(text: &str, color: egui::Color32, ui: &mut egui::Ui) -> egui::Painter {
-            let galley = egui::WidgetText::RichText(text.into()).into_galley(
+            let galley = egui::WidgetText::RichText(text.into()).color(color).into_galley(
                 ui,
                 Some(false),
                 0.0,
@@ -331,7 +342,7 @@ impl InputItem {
         match self {
             InputItem::Key(k) => {
                 let text = key_text(k);
-                draw_key(text, ui);
+                draw_key(text, ui, color);
             }
             InputItem::Axis(x, right) => {
                 let (text, horiz) = match x {
@@ -342,7 +353,6 @@ impl InputItem {
                     _ => ("?", false),
                 };
 
-                let color = egui::Color32::from_rgb(255, 255, 255);
                 let painter = draw_thumb(text, color, ui);
                 let clip_rect = painter.clip_rect();
                 let req_size = clip_rect.size();
@@ -363,12 +373,11 @@ impl InputItem {
                 draw_arrow(&painter, clip_rect.left_top() + arrow_mid, offset, color);
             }
             InputItem::Button(b) => {
-                let color = egui::Color32::from_rgb(255, 255, 255);
                 match b {
-                    GamepadButtonType::LeftTrigger => draw_key("L1".into(), ui),
-                    GamepadButtonType::LeftTrigger2 => draw_key("L2".into(), ui),
-                    GamepadButtonType::RightTrigger => draw_key("R1".into(), ui),
-                    GamepadButtonType::RightTrigger2 => draw_key("R2".into(), ui),
+                    GamepadButtonType::LeftTrigger => draw_key("L1".into(), ui, color),
+                    GamepadButtonType::LeftTrigger2 => draw_key("L2".into(), ui, color),
+                    GamepadButtonType::RightTrigger => draw_key("R1".into(), ui, color),
+                    GamepadButtonType::RightTrigger2 => draw_key("R2".into(), ui, color),
                     GamepadButtonType::LeftThumb | GamepadButtonType::RightThumb => {
                         let text = match b {
                             GamepadButtonType::LeftThumb => "L",
@@ -410,7 +419,7 @@ impl InputItem {
                     GamepadButtonType::DPadRight => draw_buttons(true, 1, color, ui),
                     GamepadButtonType::DPadDown => draw_buttons(true, 0, color, ui),
                     GamepadButtonType::DPadLeft => draw_buttons(true, 3, color, ui),
-                    b => draw_key(format!("{:?}", b), ui),
+                    b => draw_key(format!("{:?}", b), ui, color),
                     // GamepadButtonType::C => todo!(),
                     // GamepadButtonType::Z => todo!(),
                     // GamepadButtonType::Select => todo!(),
@@ -637,7 +646,7 @@ impl ActionInputs {
     }
 }
 
-fn show_action(actions: &ActionInputs, ui: &mut egui::Ui, item: ActionType, action: Option<ActionLabel>, prefer_keyboard: bool) {
+fn show_action(actions: &ActionInputs, ui: &mut egui::Ui, item: ActionType, action: Option<ActionLabel>, prefer_keyboard: bool, active: bool) {
     if let Some(input) = actions.items.get(&item).and_then(|v| {
         v.iter().find(|i| {
             matches!(i, InputItem::Key(_)) == prefer_keyboard
@@ -645,10 +654,14 @@ fn show_action(actions: &ActionInputs, ui: &mut egui::Ui, item: ActionType, acti
     }) {
         ui.horizontal(|ui| {
             if let Some(action) = action {
-                ui.label(format!("{}: ", action.0));
+                let mut text: egui::RichText = format!("{}: ", action.0).into();
+                if !active {
+                    text = text.color(egui::Color32::from_rgb(50, 50, 100));
+                }
+                ui.label(text);
             }
 
-            input.print(ui);
+            input.print(ui, active);
         });
     }
 }
@@ -662,7 +675,7 @@ fn show_directions(actions: &ActionInputs, directions: &DisplayDirections, ui: &
             strip.sizes(sz_x, 3).horizontal(|mut col| {
                 col.empty();
                 col.cell(|ui| {
-                    show_action(actions, ui, directions.up, None, prefer_keyboard);
+                    show_action(actions, ui, directions.up, None, prefer_keyboard, true);
                 });
                 col.empty();
             });
@@ -670,7 +683,7 @@ fn show_directions(actions: &ActionInputs, directions: &DisplayDirections, ui: &
         row.strip(|strip| {
             strip.sizes(sz_x, 3).horizontal(|mut col| {
                 col.cell(|ui| {
-                    show_action(actions, ui, directions.left, None, prefer_keyboard);
+                    show_action(actions, ui, directions.left, None, prefer_keyboard, true);
                 });
                 col.cell(|ui| {
                     ui.horizontal_centered(|ui| {
@@ -680,7 +693,7 @@ fn show_directions(actions: &ActionInputs, directions: &DisplayDirections, ui: &
                     });
                 });
                 col.cell(|ui| {
-                    show_action(actions, ui, directions.right, None, prefer_keyboard);
+                    show_action(actions, ui, directions.right, None, prefer_keyboard, true);
                 });
             });
         });
@@ -688,7 +701,7 @@ fn show_directions(actions: &ActionInputs, directions: &DisplayDirections, ui: &
             strip.sizes(sz_x, 3).horizontal(|mut col| {
                 col.empty();
                 col.cell(|ui| {
-                    show_action(actions, ui, directions.down, None, prefer_keyboard);
+                    show_action(actions, ui, directions.down, None, prefer_keyboard, true);
                 });
                 col.empty();
             });
@@ -701,7 +714,12 @@ fn show_controls(
     controllers: Query<&Controller>,
     actions: Res<ActionInputs>,
     last_used: Res<LastControlType>,
+    control_help: Res<ControlHelp>,
 ) {
+    if !control_help.0 {
+        return;
+    }
+
     let prefer_keyboard = *last_used == LastControlType::Keyboard;
 
     egui::Window::new("controls")
@@ -720,8 +738,14 @@ fn show_controls(
                 }
 
                 for (action_type, action) in controller.actions.iter() {
-                    if action.display {
-                        show_action(&*actions, ui, *action_type, Some(action.label), prefer_keyboard);
+                    match action.display {
+                        DisplayMode::Active => {
+                            show_action(&*actions, ui, *action_type, Some(action.label), prefer_keyboard, true);
+                        },
+                        DisplayMode::Inactive => {
+                            show_action(&*actions, ui, *action_type, Some(action.label), prefer_keyboard, false);
+                        },
+                        DisplayMode::Off => (),
                     }
                 }
 

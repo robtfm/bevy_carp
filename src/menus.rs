@@ -9,11 +9,11 @@ use bevy_pkv::PkvStore;
 use egui_extras::StripBuilder;
 
 use crate::{
-    input::{ActionType, Action, Controller},
+    input::{ActionType, Action, Controller, DisplayMode},
     model::{CoordSet, LevelBase},
     spawn_random,
     structs::{
-        ActionEvent, ChangeBackground, MenuItem, PopupMenu, PopupMenuEvent, Position, PositionZ, QUIT_TO_DESKTOP, ActionLabel,
+        ActionEvent, ChangeBackground, MenuItem, PopupMenu, PopupMenuEvent, Position, PositionZ, QUIT_TO_DESKTOP, ActionLabel, ControlHelp,
     },
     LevelDef, LevelSet, MenuChannel, Permanent, SpawnLevelEvent, SpawnPlank, window::{update_window, WindowModeSerial},
 };
@@ -310,11 +310,11 @@ pub fn spawn_in_level_menu(
 ) {
     for ev in evs.iter() {
         if ev.label.0 == "pause" {
-            println!(
+            debug!(
                 "Paused\n[{}/{}/{}]",
                 level.num_holes, level.total_blocks, level.seed
             );
-            println!("difficulty: {}", base.0.difficulty());
+            debug!("difficulty: {}", base.0.difficulty());
             spawn.send(PopupMenuEvent {
                 sender: ev.sender,
                 menu: PopupMenu {
@@ -360,21 +360,26 @@ pub fn spawn_popup_menu(
         }
 
         let mut actions = vec![
-            (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: true, display: true }),
-            (ActionType::PanUp, Action{ label: ActionLabel("up"), sticky: true, display: false }),
-            (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: true, display: true }),
-            (ActionType::PanDown, Action{ label: ActionLabel("down"), sticky: true, display: false }),
-            (ActionType::SecondAction, Action{ label: ActionLabel("cancel"), sticky: true, display: true }),
-            (ActionType::Menu, Action{ label: ActionLabel("cancel"), sticky: true, display: false }),
-            (ActionType::MainAction, Action{ label: ActionLabel("select"), sticky: true, display: true }),
+            (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: true, display: DisplayMode::Active }),
+            (ActionType::PanUp, Action{ label: ActionLabel("up"), sticky: true, display: DisplayMode::Off }),
+            (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: true, display: DisplayMode::Active }),
+            (ActionType::PanDown, Action{ label: ActionLabel("down"), sticky: true, display: DisplayMode::Off }),
+            (ActionType::MainAction, Action{ label: ActionLabel("select"), sticky: true, display: DisplayMode::Active }),
         ];
+
+        if ev.menu.cancel_action.is_some() {
+            actions.extend(vec![
+                (ActionType::SecondAction, Action{ label: ActionLabel("cancel"), sticky: true, display: DisplayMode::Active }),
+                (ActionType::Menu, Action{ label: ActionLabel("cancel"), sticky: true, display: DisplayMode::Off }),
+            ]);
+        }
 
         if ev.menu.width > 1 {
             actions.extend(vec![
-                (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: true, display: true }),
-                (ActionType::PanLeft, Action{ label: ActionLabel("left"), sticky: true, display: false }),
-                (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: true, display: true }),
-                (ActionType::PanRight, Action{ label: ActionLabel("right"), sticky: true, display: false }),
+                (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: true, display: DisplayMode::Active }),
+                (ActionType::PanLeft, Action{ label: ActionLabel("left"), sticky: true, display: DisplayMode::Off }),
+                (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: true, display: DisplayMode::Active }),
+                (ActionType::PanRight, Action{ label: ActionLabel("right"), sticky: true, display: DisplayMode::Off }),
             ]);
         }
 
@@ -393,10 +398,13 @@ pub fn spawn_popup_menu(
         debug!("menu");
 
         *active_menu = Some((ev.menu.clone(), ev.sender));
-        *menu_position = 0;
 
-        while !ev.menu.items[*menu_position].2 {
-            *menu_position += 1;
+        if ev.menu.initial_position != -1 {
+            *menu_position = ev.menu.initial_position as usize;
+
+            while !ev.menu.items[*menu_position].2 {
+                *menu_position += 1;
+            }
         }
     }
 
@@ -613,55 +621,69 @@ pub fn spawn_options_menu(
     mut settings: ResMut<PkvStore>,
     mut keep_position: Local<bool>,
     mut windows: ResMut<Windows>,
+    mut control_help: ResMut<ControlHelp>,
 ) {
-    let mut to_send = None;
-
-    for ev in reader.iter(&evs) {
-        match ev.label.0 {
-            "options" => {
-                let window_mode = match settings.get::<WindowModeSerial>("window mode").unwrap_or_default() {
-                    WindowModeSerial::Fullscreen => "Full screen",
-                    WindowModeSerial::Windowed => "Windowed",
-                };
+    while !reader.is_empty(&evs) {
+        let mut to_send = None;
+        for ev in reader.iter(&evs) {
+            match ev.label.0 {
+                "options" => {
+                    let window_mode = match settings.get::<WindowModeSerial>("window mode").unwrap_or_default() {
+                        WindowModeSerial::Fullscreen => "Full screen",
+                        WindowModeSerial::Windowed => "Windowed",
+                    };
+                    let controls_help = match control_help.0 {
+                        true => "Yes",
+                        false => "No",
+                    };
+        
+                    spawn.send(PopupMenuEvent{ 
+                        sender: Entity::from_raw(0), 
+                        menu: PopupMenu { 
+                            heading: "Options".into(), 
+                            items: vec![
+                                ("Window mode".into(), ActionLabel(""), false),
+                                (window_mode.into(), ActionLabel("toggle fullscreen"), true),
+                                ("Show controls".into(), ActionLabel(""), false),
+                                (controls_help.into(), ActionLabel("toggle controls help"), true),
+                                ("".into(), ActionLabel(""), false),
+                                ("".into(), ActionLabel(""), false),
+                                ("".into(), ActionLabel(""), false),
+                                ("Ok".into(), ActionLabel("main menu"), true),
+                            ], 
+                            cancel_action: Some(ActionLabel("main menu")), 
+                            width: 2,
+                            initial_position: if *keep_position { -1 } else { 0 },
+                            ..Default::default()
+                        }, 
+                        sound: false,
+                    });
     
-                spawn.send(PopupMenuEvent{ 
-                    sender: Entity::from_raw(0), 
-                    menu: PopupMenu { 
-                        heading: "Options".into(), 
-                        items: vec![
-                            ("Window mode".into(), ActionLabel(""), false),
-                            (window_mode.into(), ActionLabel("toggle fullscreen"), true),
-                            ("".into(), ActionLabel(""), false),
-                            ("".into(), ActionLabel(""), false),
-                            ("".into(), ActionLabel(""), false),
-                            ("Ok".into(), ActionLabel("main menu"), true),
-                        ], 
-                        cancel_action: Some(ActionLabel("main menu")), 
-                        width: 2,
-                        initial_position: if *keep_position { -1 } else { 0 },
-                        ..Default::default()
-                    }, 
-                    sound: false,
-                });
-
-                *keep_position = false;
+                    *keep_position = false;
+                }
+                "toggle fullscreen" => {
+                    let new_mode = match settings.get::<WindowModeSerial>("window mode").unwrap_or_default() {
+                        WindowModeSerial::Fullscreen => WindowModeSerial::Windowed,
+                        WindowModeSerial::Windowed => WindowModeSerial::Fullscreen,
+                    };
+    
+                    settings.set("window mode", &new_mode).unwrap();
+                    update_window(&*settings, windows.get_primary_mut().unwrap());
+                    *keep_position = true;
+                    to_send = Some(ActionEvent { sender: Entity::from_raw(0), label: ActionLabel("options"), target: None });
+                }
+                "toggle controls help" => {
+                    control_help.0 = !control_help.0;
+                    settings.set("control help", &control_help.0).unwrap();
+                    *keep_position = true;
+                    to_send = Some(ActionEvent { sender: Entity::from_raw(0), label: ActionLabel("options"), target: None });
+                }
+                _ => ()
             }
-            "toggle fullscreen" => {
-                let new_mode = match settings.get::<WindowModeSerial>("window mode").unwrap_or_default() {
-                    WindowModeSerial::Fullscreen => WindowModeSerial::Windowed,
-                    WindowModeSerial::Windowed => WindowModeSerial::Fullscreen,
-                };
-
-                settings.set("window mode", &new_mode).unwrap();
-                update_window(&*settings, windows.get_primary_mut().unwrap());
-                *keep_position = true;
-                to_send = Some(ActionEvent { sender: Entity::from_raw(0), label: ActionLabel("options"), target: None });
-            }
-            _ => ()
         }
-    }
-
-    if let Some(action) = to_send {
-        evs.send(action);
+    
+        if let Some(action) = to_send {
+            evs.send(action);
+        } 
     }
 }

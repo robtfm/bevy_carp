@@ -26,7 +26,7 @@ const PLANK_Z_HILIGHTED: f32 = 0.75;
 const PLANK_Z_DONE: f32 = 0.25;
 
 use bevy_pkv::PkvStore;
-use input::{Controller, InputPlugin, ActionType, Action, DisplayDirections};
+use input::{Controller, InputPlugin, ActionType, Action, DisplayDirections, DisplayMode};
 use menus::{spawn_in_level_menu, spawn_main_menu, spawn_play_menu, spawn_popup_menu};
 use rand::{prelude::SliceRandom, thread_rng, Rng, SeedableRng};
 
@@ -64,7 +64,7 @@ use rand_pcg::Pcg32;
 use shader::SimpleTextureMaterial;
 use structs::{
     ActionEvent, ChangeBackground, GrabDropChannel, HammerChannel, LevelDef, MenuChannel,
-    Permanent, PopupMenuEvent, PositionZ, SpawnLevelEvent, UndoChannel, LevelSet, ActionLabel,
+    Permanent, PopupMenuEvent, PositionZ, SpawnLevelEvent, UndoChannel, LevelSet, ActionLabel, ControlHelp,
 };
 use window::{WindowModeSerial, descriptor_from_settings};
 use wood_material::{WoodMaterial, WoodMaterialPlugin, WoodMaterialSpec};
@@ -84,6 +84,8 @@ fn main() {
     let settings = PkvStore::new("robtfm", "measure once");
 
     let window_descriptor = descriptor_from_settings(&settings);
+
+    let control_help = ControlHelp(settings.get("control help").unwrap_or(true));
 
     let mut app = App::new();
     app
@@ -116,6 +118,7 @@ fn main() {
             brightness: 0.1,
         })
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.3)))
+        .insert_resource(control_help)
         .add_event::<SpawnLevelEvent>()
         .add_event::<PopupMenuEvent>()
         .add_event::<CutEvent>()
@@ -149,6 +152,7 @@ fn main() {
         .add_system(ensure_focus)
         .add_system(update_positions.before(update_transforms))
         .add_system(update_transforms)
+        .add_system(check_cut_actions)
         // visuals
         .add_system(update_materials)
         .add_system(spawn_planks)
@@ -196,9 +200,9 @@ fn warm_assets(asset_server: Res<AssetServer>, mut handles: Local<Vec<HandleUnty
         asset_server.load::<AudioSource, _>("audio/zapsplat_office_compass_pencil_draw_circle_on_paper_003_22758-[AudioTrimmer.com].mp3").clone_untyped(),
         asset_server.load::<AudioSource, _>("audio/zapsplat_sport_surfboard_leash_velcro_strap_undo_003.mp3").clone_untyped(),
         asset_server.load::<AudioSource, _>("audio/zapsplat_sport_surfboard_leash_velcro_strap_undo_004.mp3").clone_untyped(),
-        asset_server.load::<Image, _>("images/lumber_edit1.png").clone_untyped(),
-        asset_server.load::<Image, _>("images/lumber_edit2.png").clone_untyped(),
-        asset_server.load::<Image, _>("images/lumber_edit3.png").clone_untyped(),
+        asset_server.load::<Image, _>("images/lumber edit1.png").clone_untyped(),
+        asset_server.load::<Image, _>("images/lumber edit2.png").clone_untyped(),
+        asset_server.load::<Image, _>("images/lumber edit3.png").clone_untyped(),
         asset_server.load::<Image, _>("images/title.png").clone_untyped(),
     ];
 }
@@ -268,7 +272,7 @@ fn handle_window_resize(
             if let Some(pos) = window.position() {
                 settings.set("window pos", &pos).unwrap();
             }
-            println!("store: {}/{}",  window.width(), window.height());
+            debug!("store: {}/{}",  window.width(), window.height());
         }
     }
 
@@ -449,13 +453,13 @@ fn create_level(
         commands.spawn().insert(Controller {
             display_order: 0,
             actions: vec![
-                (ActionType::Menu, Action{ label: ActionLabel("pause"), sticky: true, display: true }),
-                (ActionType::ThirdAction, Action{ label: ActionLabel("undo"), sticky: true, display: true }),
-                (ActionType::FourthAction, Action{ label: ActionLabel("redo"), sticky: true, display: true }),
+                (ActionType::Menu, Action{ label: ActionLabel("pause"), sticky: true, display: DisplayMode::Active }),
+                (ActionType::ThirdAction, Action{ label: ActionLabel("undo"), sticky: true, display: DisplayMode::Active }),
+                (ActionType::FourthAction, Action{ label: ActionLabel("redo"), sticky: true, display: DisplayMode::Active }),
             ],
             enabled: true,
             ..Default::default()
-        });
+        }).insert(SystemController);
 
         let size = level.extents;
         let pos = IVec2::new(-size.x / 2, 1);
@@ -514,13 +518,13 @@ fn create_level(
                 display_directions: Some(DisplayDirections{ label: "pan".into(), up: ActionType::PanUp, down: ActionType::PanDown, left: ActionType::PanLeft, right: ActionType::PanRight }),
                 enabled: true,
                 actions: vec![
-                    (ActionType::PanUp, Action{ label: ActionLabel("up"), sticky: false, display: false }),
-                    (ActionType::PanDown, Action{ label: ActionLabel("down"), sticky: false, display: false }),
-                    (ActionType::PanLeft, Action{ label: ActionLabel("left"), sticky: false, display: false }),
-                    (ActionType::PanRight, Action{ label: ActionLabel("right"), sticky: false, display: false }),
-                    (ActionType::ZoomIn, Action{ label: ActionLabel("forward"), sticky: false, display: true }),
-                    (ActionType::ZoomOut, Action{ label: ActionLabel("backward"), sticky: false, display: true }),
-                    (ActionType::PanFocus, Action{ label: ActionLabel("focus"), sticky: true, display: true }),
+                    (ActionType::PanUp, Action{ label: ActionLabel("up"), sticky: false, display: DisplayMode::Off }),
+                    (ActionType::PanDown, Action{ label: ActionLabel("down"), sticky: false, display: DisplayMode::Off }),
+                    (ActionType::PanLeft, Action{ label: ActionLabel("left"), sticky: false, display: DisplayMode::Off }),
+                    (ActionType::PanRight, Action{ label: ActionLabel("right"), sticky: false, display: DisplayMode::Off }),
+                    (ActionType::ZoomIn, Action{ label: ActionLabel("forward"), sticky: false, display: DisplayMode::Active }),
+                    (ActionType::ZoomOut, Action{ label: ActionLabel("backward"), sticky: false, display: DisplayMode::Active }),
+                    (ActionType::PanFocus, Action{ label: ActionLabel("focus"), sticky: true, display: DisplayMode::Active }),
                 ],
                 ..Default::default()
             })
@@ -540,12 +544,12 @@ fn create_level(
                 display_directions: Some(DisplayDirections{ label: "move".into(), up: ActionType::MoveUp, down: ActionType::MoveDown, left: ActionType::MoveLeft, right: ActionType::MoveRight }),
                 enabled: true,
                 actions: vec![
-                    (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: false, display: false }),
-                    (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: false, display: false }),
-                    (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: false, display: false }),
-                    (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: false, display: false }),
-                    (ActionType::MainAction, Action{ label: ActionLabel("grab"), sticky: true, display: true }),
-                    (ActionType::SecondAction, Action{ label: ActionLabel("cut"), sticky: true, display: true }),
+                    (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: false, display: DisplayMode::Off }),
+                    (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: false, display: DisplayMode::Off }),
+                    (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: false, display: DisplayMode::Off }),
+                    (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: false, display: DisplayMode::Off }),
+                    (ActionType::MainAction, Action{ label: ActionLabel("grab"), sticky: true, display: DisplayMode::Active }),
+                    (ActionType::SecondAction, Action{ label: ActionLabel("cut"), sticky: true, display: DisplayMode::Active }),
                 ],
                 ..Default::default()
             })
@@ -745,6 +749,9 @@ struct DonePlanks(Vec<(Plank, Position, Vec<IVec2>)>);
 struct MHoles;
 
 #[derive(Component)]
+struct SystemController;
+
+#[derive(Component)]
 struct RotateAround(IVec2);
 
 fn update_materials(
@@ -874,7 +881,7 @@ fn grab_or_drop(
     audio: Res<AudioChannel<GrabDropChannel>>,
 ) {
     for ev in ev.iter() {
-        if ev.label.0 == "grab" {
+        if ["grab", "swap"].into_iter().find(|l| l == &ev.label.0).is_some() {
             if let Ok((grab, mut trans)) = to_grab.get_single_mut() {
                 debug!("grab");
                 commands
@@ -885,12 +892,12 @@ fn grab_or_drop(
                         display_order: 4,
                         enabled: true,
                         actions: vec![
-                            (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: false, display: false }),
-                            (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: false, display: false }),
-                            (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: false, display: false }),
-                            (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: false, display: false }),
-                            (ActionType::TurnLeft, Action{ label: ActionLabel("rotate left"), sticky: true, display: true }),
-                            (ActionType::TurnRight, Action{ label: ActionLabel("rotate right"), sticky: true, display: true }),
+                            (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: false, display: DisplayMode::Off }),
+                            (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: false, display: DisplayMode::Off }),
+                            (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: false, display: DisplayMode::Off }),
+                            (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: false, display: DisplayMode::Off }),
+                            (ActionType::TurnLeft, Action{ label: ActionLabel("rotate left"), sticky: true, display: DisplayMode::Active }),
+                            (ActionType::TurnRight, Action{ label: ActionLabel("rotate right"), sticky: true, display: DisplayMode::Active }),
                         ],
                         ..Default::default()
                     });
@@ -900,7 +907,9 @@ fn grab_or_drop(
                     asset_server.load("audio/zapsplat_multimedia_pop_up_tone_short_010_78862.mp3"),
                 );
             }
+        }
 
+        if ["drop", "swap"].into_iter().find(|l| l == &ev.label.0).is_some() {
             if let Ok((droppee, mut trans)) = to_drop.get_single_mut() {
                 debug!("drop");
                 commands
@@ -1069,6 +1078,7 @@ fn cut_plank(
     >,
     mut vis: Query<&mut Visibility>,
     targeted: Query<(Entity, &Position, &PlankComponent), With<Targeted>>,
+    selected: Query<&Selected>,
     cut: Query<(Entity, &Cut, &Position)>,
     (mut meshes, mut std_mats): (ResMut<Assets<Mesh>>, ResMut<Assets<StandardMaterial>>),
     mut spawn_plank: EventWriter<SpawnPlank>,
@@ -1101,7 +1111,7 @@ fn cut_plank(
             }
         }
 
-        if ev.label.0 == "cut" {
+        if ev.label.0 == "cut" && selected.is_empty() {
             if let Ok((_ent, plank_pos, plank)) = targeted.get_single() {
                 if let Ok(pos) = cursor_pos.get(ev.sender) {
                     debug!("begin cut");
@@ -1163,12 +1173,12 @@ fn cut_plank(
                             display_directions: Some(DisplayDirections{ label: "Cut".into(), up: ActionType::MoveUp, down: ActionType::MoveDown, left: ActionType::MoveLeft, right: ActionType::MoveRight }),
                             enabled: true,
                             actions: vec![
-                                (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: false, display: false }),
-                                (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: false, display: false }),
-                                (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: false, display: false }),
-                                (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: false, display: false }),
-                                (ActionType::MainAction, Action{ label: ActionLabel("finish cut"), sticky: true, display: true }),
-                                (ActionType::SecondAction, Action{ label: ActionLabel("cancel"), sticky: true, display: true }),
+                                (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: false, display: DisplayMode::Off }),
+                                (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: false, display: DisplayMode::Off }),
+                                (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: false, display: DisplayMode::Off }),
+                                (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: false, display: DisplayMode::Off }),
+                                (ActionType::MainAction, Action{ label: ActionLabel("finish cut"), sticky: true, display: DisplayMode::Active }),
+                                (ActionType::SecondAction, Action{ label: ActionLabel("cancel"), sticky: true, display: DisplayMode::Active }),
                             ],
                             ..Default::default()
                         })
@@ -1633,7 +1643,7 @@ fn animate_cuts(
 
     if !cuts.is_empty() {
         if prev_cutting.is_none() {
-            println!("begin sound");
+            debug!("begin sound");
             audio.set_playback_rate(0.5);
             audio.set_volume(0.7);
             audio.play_looped(asset_server.load("audio/zapsplat_office_compass_pencil_draw_circle_on_paper_003_22758-[AudioTrimmer.com].mp3"));
@@ -1698,7 +1708,7 @@ fn animate_cuts(
 
     if let Some(end_time) = *prev_cutting {
         if time.seconds_since_startup() > end_time + 0.25 {
-            println!("end sound");
+            debug!("end sound");
             audio.stop();
             *prev_cutting = None;
         }
@@ -2017,5 +2027,60 @@ fn system_events(
             }
             _ => (),
         }
+    }
+}
+
+
+fn check_cut_actions(
+    mut cutter: Query<(&mut Controller, &Cut),  (With<Cut>, Without<Cursor>, Without<SystemController>)>,
+    mut cursor: Query<&mut Controller,          (Without<Cut>, With<Cursor>, Without<SystemController>)>,
+    mut system: Query<&mut Controller,          (Without<Cut>, Without<Cursor>, With<SystemController>)>,
+    undo: Res<UndoBuffer>,   
+    select: Query<(), With<Selected>>,
+    target: Query<(), With<Targeted>>,
+) {
+    fn set(controller: &mut Controller, label: &'static str, active: bool) {
+        controller.actions.iter_mut().find(|(_, action)| action.label == ActionLabel(label)).unwrap().1.display = match active {
+            true => DisplayMode::Active,
+            false => DisplayMode::Inactive,
+        }
+    }
+
+    let mut cutting = false;
+    for (mut controller, cut) in cutter.iter_mut() {
+        set(&mut controller, "finish cut", cut.finished);
+        cutting = true;
+    }
+
+    for mut controller in system.iter_mut() {
+        set(&mut controller, "undo", !cutting && undo.has_back());
+        set(&mut controller, "redo", !cutting && undo.has_forward());
+    }
+
+    let has_select = !select.is_empty();
+    let has_target = !target.is_empty();
+
+    for mut controller in cursor.iter_mut() {
+        let main_action = controller.actions.iter_mut().find(|(typ, _)| typ == &ActionType::MainAction).unwrap();
+        match (has_select, has_target) {
+            (true, true) => {
+                main_action.1.label = ActionLabel("swap");
+                main_action.1.display = DisplayMode::Active;
+            }
+            (true, false) =>  {
+                main_action.1.label = ActionLabel("drop");
+                main_action.1.display = DisplayMode::Active;
+            }
+            (false, true) =>  {
+                main_action.1.label = ActionLabel("grab");
+                main_action.1.display = DisplayMode::Active;
+            },
+            (false, false) =>  {
+                main_action.1.label = ActionLabel("grab");
+                main_action.1.display = DisplayMode::Inactive;
+            },
+        }
+
+        set(&mut controller, "cut", !has_select && has_target);
     }
 }

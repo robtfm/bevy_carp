@@ -33,7 +33,7 @@ pub fn descriptor_from_settings(settings: &PkvStore) -> WindowDescriptor {
         Ok(d) => d,
         Err(_) => (1280.0, 720.0),
     };
-    println!("read: {}/{}",  width, height);
+    debug!("read: {}/{}",  width, height);
     let window_pos = settings.get("window pos").ok();
     let mode = settings
         .get::<WindowModeSerial>("window mode")
@@ -50,7 +50,7 @@ pub fn descriptor_from_settings(settings: &PkvStore) -> WindowDescriptor {
         ..Default::default()
     };
 
-    println!("window desc: {:?}", window_descriptor);
+    debug!("window desc: {:?}", window_descriptor);
     window_descriptor
 }
 
