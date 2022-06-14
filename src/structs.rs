@@ -42,43 +42,7 @@ pub struct HammerChannel;
 pub struct SwooshChannel;
 pub struct CutChannel;
 pub struct UndoChannel;
-//menus
-
-#[derive(Clone)]
-pub struct PopupMenu {
-    pub heading: String,
-    pub items: Vec<(String, ActionLabel, bool)>,
-    pub cancel_action: Option<ActionLabel>,
-    pub transparent: bool,
-    pub header_size: f32,
-    pub width: usize,
-    pub footer: String,
-    pub initial_position: i32, //  -1 -> prev position
-}
-
-impl Default for PopupMenu {
-    fn default() -> Self {
-        Self {
-            heading: "".into(),
-            items: Vec::new(),
-            cancel_action: None,
-            transparent: false,
-            header_size: 0.35,
-            width: 1,
-            footer: "".into(),
-            initial_position: 0,
-        }
-    }
-}
-
-pub struct PopupMenuEvent {
-    pub sender: Entity,
-    pub menu: PopupMenu,
-    pub sound: bool,
-}
-
-#[derive(Component)]
-pub struct MenuItem;
+pub struct MusicChannel;
 
 #[derive(Component)]
 pub struct Permanent;

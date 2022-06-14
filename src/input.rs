@@ -618,7 +618,19 @@ impl ActionInputs {
                         }
                     }
                 }
-                InputItem::Button(button_type) => {
+                #[allow(unused_mut)]
+                InputItem::Button(mut button_type) => {
+
+                    // fix webgl button mapping, for me at least
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        button_type = match button_type {
+                            GamepadButtonType::North => GamepadButtonType::West,
+                            GamepadButtonType::West => GamepadButtonType::North,
+                            b => b,
+                        };
+                    }
+
                     if let Some(gamepad) = inputs.pad.0 {
                         let button = inputs
                             .buttons
@@ -630,7 +642,7 @@ impl ActionInputs {
                              */
                             .get(GamepadButton(
                                 gamepad,
-                                *button_type,
+                                button_type,
                             ))
                             .unwrap();
                         if button > 0.5 {

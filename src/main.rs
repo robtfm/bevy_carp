@@ -18,6 +18,7 @@
 // merge pbr and use lighting
 
 #![feature(let_else)]
+#![feature(bool_to_option)]
 
 const HOLE_Z: f32 = 0.0;
 const PLANK_Z: f32 = 0.5;
@@ -27,7 +28,7 @@ const PLANK_Z_DONE: f32 = 0.25;
 
 use bevy_pkv::PkvStore;
 use input::{Controller, InputPlugin, ActionType, Action, DisplayDirections, DisplayMode};
-use menus::{spawn_in_level_menu, spawn_main_menu, spawn_play_menu, spawn_popup_menu};
+use menus::{spawn_in_level_menu, spawn_main_menu, spawn_play_menu, spawn_popup_menu, PopupMenuEvent};
 use rand::{prelude::SliceRandom, thread_rng, Rng, SeedableRng};
 
 use bevy::{
@@ -39,7 +40,7 @@ use bevy::{
         render_resource::{Extent3d, TextureDimension},
     },
     utils::{HashMap, HashSet},
-    window::{WindowResized}, log::LogSettings,
+    window::{WindowResized}, log::LogSettings, math::Vec3Swizzles,
 };
 
 use bevy_egui::{
@@ -64,15 +65,15 @@ use rand_pcg::Pcg32;
 use shader::SimpleTextureMaterial;
 use structs::{
     ActionEvent, ChangeBackground, GrabDropChannel, HammerChannel, LevelDef, MenuChannel,
-    Permanent, PopupMenuEvent, PositionZ, SpawnLevelEvent, UndoChannel, LevelSet, ActionLabel, ControlHelp,
+    Permanent, PositionZ, SpawnLevelEvent, UndoChannel, LevelSet, ActionLabel, ControlHelp, MusicChannel,
 };
 use window::{WindowModeSerial, descriptor_from_settings};
 use wood_material::{WoodMaterial, WoodMaterialPlugin, WoodMaterialSpec};
 
 use crate::{
     background::BackgroundPlugin,
-    menus::{spawn_credits, spawn_options_menu},
-    structs::{CutChannel, PopupMenu, Position, SwooshChannel, QUIT_TO_DESKTOP},
+    menus::{spawn_credits, spawn_options_menu, PopupMenu},
+    structs::{CutChannel, Position, SwooshChannel, QUIT_TO_DESKTOP},
 };
 
 fn main() {
@@ -84,8 +85,11 @@ fn main() {
     let settings = PkvStore::new("robtfm", "measure once");
 
     let window_descriptor = descriptor_from_settings(&settings);
-
     let control_help = ControlHelp(settings.get("control help").unwrap_or(true));
+    let cursor_speed = CursorSpeed(settings.get("cursor speed").unwrap_or(15.0));
+    let cut_speed = CutSpeed(settings.get("cut speed").unwrap_or(5.0));    
+    let music_volume = MusicVolume(settings.get("music volume").unwrap_or(0.5));
+    let sfx_volume = SfxVolume(settings.get("sfx volume").unwrap_or(0.5));
 
     let mut app = App::new();
     app
@@ -100,6 +104,7 @@ fn main() {
         .add_plugin(AudioPlugin)
         .add_plugin(InputPlugin)
         .add_plugin(BackgroundPlugin)
+        .add_audio_channel::<MusicChannel>()
         .add_audio_channel::<MenuChannel>()
         .add_audio_channel::<GrabDropChannel>()
         .add_audio_channel::<SwooshChannel>()
@@ -119,6 +124,10 @@ fn main() {
         })
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.3)))
         .insert_resource(control_help)
+        .insert_resource(cursor_speed)
+        .insert_resource(cut_speed)
+        .insert_resource(music_volume)
+        .insert_resource(sfx_volume)
         .add_event::<SpawnLevelEvent>()
         .add_event::<PopupMenuEvent>()
         .add_event::<CutEvent>()
@@ -153,12 +162,14 @@ fn main() {
         .add_system(update_positions.before(update_transforms))
         .add_system(update_transforms)
         .add_system(check_cut_actions)
-        // visuals
+        // fx
         .add_system(update_materials)
         .add_system(spawn_planks)
         .add_system(spawn_nails)
         .add_system(animate_cuts)
         .add_system(animate_sparks)
+        .add_system(update_volumes)
+        .add_system(update_speed_settings)
         // system events
         .add_system_to_stage(CoreStage::PostUpdate, system_events)
         // undo/redo
@@ -178,12 +189,76 @@ struct ResetEvent {
     camera_trans: Option<Transform>,
 }
 
-fn splash(mut evs: EventWriter<ActionEvent>) {
+fn splash(
+    mut evs: EventWriter<ActionEvent>,
+    audio: Res<AudioChannel<MusicChannel>>,
+    server: Res<AssetServer>,
+) {
     evs.send(ActionEvent {
         sender: Entity::from_raw(0),
         label: ActionLabel("main menu"),
         target: None,
     });
+
+    audio.play_looped(server.load("audio/Banjos,+Unite!+-+320bit.mp3"));
+}
+
+pub struct MusicVolume(pub f32);
+pub struct SfxVolume(pub f32);
+
+fn update_volumes(
+    music_channel: Res<AudioChannel<MusicChannel>>,
+    menu_channel: Res<AudioChannel<MenuChannel>>, 
+    grab_channel: Res<AudioChannel<GrabDropChannel>>, 
+    swoosh_channel: Res<AudioChannel<SwooshChannel>>, 
+    hammer_channel: Res<AudioChannel<HammerChannel>>, 
+    cut_channel: Res<AudioChannel<CutChannel>>, 
+    undo_channel: Res<AudioChannel<UndoChannel>>,
+    music: Res<MusicVolume>,
+    sfx: Res<SfxVolume>,
+    mut last_music: Local<Option<f32>>,
+    mut last_sfx: Local<Option<f32>>,
+    mut settings: ResMut<PkvStore>,
+    asset_server: Res<AssetServer>,
+) {
+    if Some(music.0) != *last_music {
+        music_channel.set_volume(music.0);
+        *last_music = Some(music.0);
+        settings.set("music volume", &music.0).unwrap();
+    }
+    if Some(sfx.0) != *last_sfx {
+        menu_channel.set_volume(sfx.0);
+        grab_channel.set_volume(sfx.0);
+        swoosh_channel.set_volume(sfx.0);
+        hammer_channel.set_volume(sfx.0);
+        cut_channel.set_volume(sfx.0);
+        undo_channel.set_volume(sfx.0);
+
+        if last_sfx.is_some() {
+            cut_channel.stop();
+            cut_channel.play(asset_server.load("audio/zapsplat_industrial_hand_saw_sawing_wood_hollow_fast_pace_short_71000-[AudioTrimmer.com].mp3"));
+            settings.set("sfx volume", &sfx.0).unwrap();
+        }
+
+        *last_sfx = Some(sfx.0);
+    }
+}
+
+fn update_speed_settings(
+    cursor: Res<CursorSpeed>,
+    cutter: Res<CutSpeed>,
+    mut last_cursor: Local<f32>,
+    mut last_cutter: Local<f32>,
+    mut settings: ResMut<PkvStore>,
+) {
+    if cursor.0 != *last_cursor {
+        settings.set("cursor speed", &cursor.0).unwrap();
+        *last_cursor = cursor.0;
+    }
+    if cutter.0 != *last_cutter {
+        settings.set("cutter speed", &cutter.0).unwrap();
+        *last_cutter = cutter.0;
+    }
 }
 
 fn warm_assets(asset_server: Res<AssetServer>, mut handles: Local<Vec<HandleUntyped>>) {
@@ -260,10 +335,11 @@ fn handle_window_resize(
     }
 
     if let Some(window) = windows.get_primary() {
-        egui_settings.scale_factor = f64::max(
+        let scale = f64::max(
             0.1,
             f32::min(window.height() / 720.0, window.width() / 1280.0) as f64,
         );
+        egui_settings.scale_factor = scale;
 
         if settings.get::<WindowModeSerial>("window mode").unwrap() != WindowModeSerial::Fullscreen {
             settings
@@ -434,6 +510,9 @@ fn create_coordset_image<'a>(images: &mut Assets<Image>, coords: &CoordSet) -> H
     images.add(image)
 }
 
+pub struct CursorSpeed(pub f32);
+pub struct CutSpeed(pub f32);
+
 fn create_level(
     mut evs: EventReader<ResetEvent>,
     old: Query<Entity, Without<Permanent>>,
@@ -444,6 +523,7 @@ fn create_level(
     mut spawn_planks: EventWriter<SpawnPlank>,
     (mut meshes, mut std_mats): (ResMut<Assets<Mesh>>, ResMut<Assets<StandardMaterial>>),
     mut focus: EventWriter<ActionEvent>,
+    cursor_speed: Res<CursorSpeed>,
 ) {
     for ev in evs.iter() {
         for ent in old.iter() {
@@ -539,6 +619,7 @@ fn create_level(
             .insert(ev.cursor_pos.unwrap_or_default())
             .insert(ExtentItem(IVec2::ONE, IVec2::ONE))
             .insert(Cursor)
+            .insert(MoveSpeed(cursor_speed.0))
             .insert(Controller {
                 display_order: 2,
                 display_directions: Some(DisplayDirections{ label: "move".into(), up: ActionType::MoveUp, down: ActionType::MoveDown, left: ActionType::MoveLeft, right: ActionType::MoveRight }),
@@ -875,12 +956,18 @@ fn ensure_focus(
 fn grab_or_drop(
     mut commands: Commands,
     mut ev: EventReader<ActionEvent>,
-    mut to_grab: Query<(Entity, &mut Transform), (With<Targeted>, Without<Selected>)>,
-    mut to_drop: Query<(Entity, &mut Transform), With<Selected>>,
+    mut to_grab: Query<(Entity, &mut Transform), (With<Targeted>, Without<Selected>, Without<Cursor>)>,
+    mut to_drop: Query<(Entity, &mut Transform), (With<Selected>, Without<Cursor>)>,
     asset_server: Res<AssetServer>,
     audio: Res<AudioChannel<GrabDropChannel>>,
+    cursor_speed: Res<CursorSpeed>,
+    cursor: Query<(&Transform, &Position), With<Cursor>>,
 ) {
     for ev in ev.iter() {
+        let Ok((cursor_trans, cursor_pos)) = cursor.get_single() else {
+            continue;
+        };
+
         if ["grab", "swap"].into_iter().find(|l| l == &ev.label.0).is_some() {
             if let Ok((grab, mut trans)) = to_grab.get_single_mut() {
                 debug!("grab");
@@ -888,6 +975,7 @@ fn grab_or_drop(
                     .entity(grab)
                     .remove::<Targeted>()
                     .insert(Selected)
+                    .insert(MoveSpeed(cursor_speed.0))
                     .insert(Controller {
                         display_order: 4,
                         enabled: true,
@@ -901,6 +989,8 @@ fn grab_or_drop(
                         ],
                         ..Default::default()
                     });
+                // add cursor's position offset
+                trans.translation += (cursor_trans.translation.xy() - cursor_pos.0.as_vec2()).extend(0.0);
                 trans.translation.z = PLANK_Z_SELECTED;
                 audio.set_playback_rate(1.1);
                 audio.play(
@@ -1086,6 +1176,7 @@ fn cut_plank(
     asset_server: Res<AssetServer>,
     audio: Res<AudioChannel<GrabDropChannel>>,
     mut last_cutter_pos: Local<IVec2>,
+    cut_speed: Res<CutSpeed>,
 ) {
     for ev in ev.iter() {
         if ev.label.0 == "cancel" {
@@ -1165,7 +1256,7 @@ fn cut_plank(
                         ))
                         .insert(Position(valid))
                         .insert(PrevPosition(valid))
-                        .insert(MoveSpeed(5.0))
+                        .insert(MoveSpeed(cut_speed.0))
                         .insert(ExtentItem(IVec2::ONE, IVec2::ONE))
                         .insert(Cut::default())
                         .insert(Controller {
@@ -1450,13 +1541,13 @@ enum CutEvent {
 
 fn extend_cut(
     mut cutter: Query<
-        (&mut Cut, &mut Position, &mut PrevPosition, &MoveSpeed),
+        (&mut Cut, &mut Position, &mut PrevPosition, &mut Transform, &MoveSpeed),
         (Without<Targeted>, Changed<Position>),
     >,
     selected: Query<(&PlankComponent, &Position), With<Targeted>>,
     mut cuts: EventWriter<CutEvent>,
 ) {
-    for (mut cut, mut position, mut prev, speed) in cutter.iter_mut() {
+    for (mut cut, mut position, mut prev, mut trans, speed) in cutter.iter_mut() {
         if position.0 == prev.0 {
             continue;
         }
@@ -1471,6 +1562,7 @@ fn extend_cut(
                 _ => {
                     debug!("weird move, abort");
                     position.0 = prev.0;
+                    trans.translation = position.0.as_vec2().extend(trans.translation.z);
                     continue;
                 }
             };
@@ -1480,6 +1572,7 @@ fn extend_cut(
             if !plank.0.contains(affected.0) && !plank.0.contains(affected.1) {
                 debug!("air block");
                 position.0 = prev.0;
+                trans.translation = position.0.as_vec2().extend(trans.translation.z);
                 continue;
             }
 
@@ -1502,6 +1595,7 @@ fn extend_cut(
             if cut.finished {
                 debug!("finished block");
                 position.0 = prev.0;
+                trans.translation = position.0.as_vec2().extend(trans.translation.z);
                 continue;
             }
 
@@ -1810,14 +1904,14 @@ fn spawn_planks(
         let colors = match (ev.is_plank, ev.is_interactive) {
             (true, true) => (1.5, 1.2, 1.0),
             (true, false) => (1.5, 1.2, 0.0),
-            (false, _) => (1.0, 1.0, 0.0),
+            (false, _) => (0.8, 1.0, 0.0),
         };
 
         let plank_spec = WoodMaterialSpec {
             texture_offset: plank.texture_offset,
             turns: plank.turns,
-            primary_color: Color::rgba(0.462, 0.272, 0.136, 1.0) * colors.0,
-            secondary_color: Color::rgba(0.284, 0.13, 0.118, 1.0) * colors.1,
+            primary_color: Color::rgba(0.562, 0.272, 0.136, 1.0) * colors.0,
+            secondary_color: Color::rgba(0.384, 0.13, 0.118, 1.0) * colors.1,
             hilight_color: Color::rgba(0.2, 0.2, 1.0, 1.0) * colors.2,
             size: size.as_uvec2(),
             is_plank: ev.is_plank,
