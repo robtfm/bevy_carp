@@ -10,9 +10,10 @@
 // improve cutter
 // more sfx
 // credits
+// music
+// options (ex keys)
 
 //tbd
-// music
 // options (inc keys)
 // quotes (in and out)
 // merge pbr and use lighting
