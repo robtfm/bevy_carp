@@ -11,7 +11,10 @@ use bevy::{
 use bevy_egui::{egui, EguiContext};
 use egui_extras::StripBuilder;
 
-use crate::{structs::{ActionEvent, LevelDef, ActionLabel, ControlHelp}, LevelSet};
+use crate::{
+    structs::{ActionEvent, ActionLabel, ControlHelp, LevelDef},
+    LevelSet,
+};
 
 pub struct InputPlugin;
 
@@ -30,19 +33,15 @@ impl Plugin for InputPlugin {
             // input
             .add_system(pad_connection)
             .add_system_to_stage(CoreStage::PreUpdate, controller)
-            .add_system_to_stage(CoreStage::PreUpdate, new_input_controller)
-        ;
+            .add_system_to_stage(CoreStage::PreUpdate, new_input_controller);
     }
 }
 
-fn init_settings(
-    mut settings: ResMut<PkvStore>,
-    mut inputs: ResMut<ActionInputs>,
-) {
+fn init_settings(mut settings: ResMut<PkvStore>, mut inputs: ResMut<ActionInputs>) {
     match settings.get("inputs") {
         Ok(set_inputs) => *inputs = set_inputs,
         Err(_) => settings.set("inputs", &ActionInputs::default()).unwrap(),
-    }    
+    }
 }
 
 #[derive(Default)]
@@ -57,10 +56,7 @@ fn pad_connection(mut pad: ResMut<GamePadRes>, mut gamepad_event: EventReader<Ga
                 event_type: GamepadEventType::Connected,
             } => {
                 */
-            GamepadEvent(
-                gamepad,
-                GamepadEventType::Connected,
-            ) => {
+            GamepadEvent(gamepad, GamepadEventType::Connected) => {
                 pad.0 = Some(*gamepad);
                 debug!("C");
             }
@@ -70,10 +66,7 @@ fn pad_connection(mut pad: ResMut<GamePadRes>, mut gamepad_event: EventReader<Ga
                 event_type: GamepadEventType::Disconnected,
             } => {
                  */
-            GamepadEvent(
-                gamepad,
-                GamepadEventType::Disconnected,
-            ) => {
+            GamepadEvent(gamepad, GamepadEventType::Disconnected) => {
                 if let Some(cur_pad) = pad.0 {
                     if &cur_pad == gamepad {
                         pad.0 = None;
@@ -121,7 +114,6 @@ pub enum ActionType {
     ZoomOut,
     TurnLeft,
     TurnRight,
-
 }
 
 impl ActionType {
@@ -225,15 +217,18 @@ fn new_input_controller(
     mut already_pressed: Local<HashSet<GamepadButtonType>>,
     mut already_moved: Local<HashSet<GamepadAxisType>>,
 ) {
-    for (ent, mut options) in
-        controllers.iter_mut()
-    {
+    for (ent, mut options) in controllers.iter_mut() {
         if !options.initialized {
             options.initialized = true;
 
             if let Some(pad) = inputs.pad.0 {
                 for button_type in ALL_BUTTONS.iter() {
-                    if inputs.buttons.get(GamepadButton(pad, *button_type)).unwrap() > 0.5 {
+                    if inputs
+                        .buttons
+                        .get(GamepadButton(pad, *button_type))
+                        .unwrap()
+                        > 0.5
+                    {
                         already_pressed.insert(*button_type);
                     }
                 }
@@ -253,7 +248,13 @@ fn new_input_controller(
 
         if let Some(pad) = inputs.pad.0 {
             for button_type in ALL_BUTTONS.iter() {
-                if inputs.buttons.get(GamepadButton(pad, *button_type)).unwrap() > 0.5 && !already_pressed.contains(button_type) {
+                if inputs
+                    .buttons
+                    .get(GamepadButton(pad, *button_type))
+                    .unwrap()
+                    > 0.5
+                    && !already_pressed.contains(button_type)
+                {
                     new_inputs.send(NewInputEvent(ent, InputItem::Button(*button_type)));
                 }
             }
@@ -261,12 +262,19 @@ fn new_input_controller(
             for axis_type in ALL_AXES.iter() {
                 let axis_val = inputs.axes.get(GamepadAxis(pad, *axis_type)).unwrap();
                 if axis_val.abs() > 0.5 && !already_moved.contains(axis_type) {
-                    new_inputs.send(NewInputEvent(ent, InputItem::Axis(*axis_type, axis_val > 0.0)));
+                    new_inputs.send(NewInputEvent(
+                        ent,
+                        InputItem::Axis(*axis_type, axis_val > 0.0),
+                    ));
                 }
             }
 
             already_pressed.retain(|button_type| {
-                inputs.buttons.get(GamepadButton(pad, *button_type)).unwrap() > 0.5
+                inputs
+                    .buttons
+                    .get(GamepadButton(pad, *button_type))
+                    .unwrap()
+                    > 0.5
             });
 
             already_moved.retain(|axis_type| {
@@ -278,17 +286,12 @@ fn new_input_controller(
 
 fn controller(
     inputs: InputParams,
-    mut controllers: Query<(
-        Entity,
-        &mut Controller,
-    )>,
+    mut controllers: Query<(Entity, &mut Controller)>,
     mut actions: EventWriter<ActionEvent>,
     mut mapping: ResMut<ActionInputs>,
     mut last_used: ResMut<LastControlType>,
 ) {
-    for (ent, mut options) in
-        controllers.iter_mut()
-    {
+    for (ent, mut options) in controllers.iter_mut() {
         if !options.enabled {
             options.initialized = false;
             continue;
@@ -340,17 +343,14 @@ fn key_text(k: &KeyCode) -> String {
 impl InputItem {
     pub fn print(&self, ui: &mut egui::Ui, active: bool) {
         let color = match active {
-            true => egui::Color32::from_rgb(255,255,255),
-            false => egui::Color32::from_rgb(50,50,100),
+            true => egui::Color32::from_rgb(255, 255, 255),
+            false => egui::Color32::from_rgb(50, 50, 100),
         };
 
         fn draw_key(text: String, ui: &mut egui::Ui, color: egui::Color32) {
-            let galley = egui::WidgetText::RichText(text.into()).color(color).into_galley(
-                ui,
-                Some(false),
-                0.0,
-                egui::FontSelection::Default,
-            );
+            let galley = egui::WidgetText::RichText(text.into())
+                .color(color)
+                .into_galley(ui, Some(false), 0.0, egui::FontSelection::Default);
             let req_size = (galley.size() + egui::vec2(20.0, 10.0)).max(egui::vec2(35.0, 10.0));
 
             let (response, painter) = ui.allocate_painter(req_size, egui::Sense::hover());
@@ -391,12 +391,9 @@ impl InputItem {
         }
 
         fn draw_thumb(text: &str, color: egui::Color32, ui: &mut egui::Ui) -> egui::Painter {
-            let galley = egui::WidgetText::RichText(text.into()).color(color).into_galley(
-                ui,
-                Some(false),
-                0.0,
-                egui::FontSelection::Default,
-            );
+            let galley = egui::WidgetText::RichText(text.into())
+                .color(color)
+                .into_galley(ui, Some(false), 0.0, egui::FontSelection::Default);
             let req_size = galley.size() + egui::vec2(16.0, 10.0);
 
             let (response, painter) = ui.allocate_painter(req_size, egui::Sense::hover());
@@ -583,8 +580,8 @@ pub struct ActionInputs {
 
 impl Default for ActionInputs {
     fn default() -> Self {
-        use InputItem::*;
         use ActionType::*;
+        use InputItem::*;
         Self {
             items: HashMap::from_iter(vec![
                 (
@@ -742,10 +739,7 @@ impl ActionInputs {
                                 gamepad,
                                 axis_type: *axis_type,
                             })  */
-                            .get(GamepadAxis(
-                                gamepad,
-                                *axis_type,
-                            ))
+                            .get(GamepadAxis(gamepad, *axis_type))
                             .unwrap();
                         if axis > 0.5 && *right {
                             self.last_used = LastControlType::Gamepad;
@@ -759,7 +753,6 @@ impl ActionInputs {
                 }
                 #[allow(unused_mut)]
                 InputItem::Button(mut button_type) => {
-
                     // fix webgl button mapping, for me at least
                     #[cfg(target_arch = "wasm32")]
                     {
@@ -779,10 +772,7 @@ impl ActionInputs {
                                 button_type: *button_type,
                             })
                              */
-                            .get(GamepadButton(
-                                gamepad,
-                                button_type,
-                            ))
+                            .get(GamepadButton(gamepad, button_type))
                             .unwrap();
                         if button > 0.5 {
                             self.last_used = LastControlType::Gamepad;
@@ -797,11 +787,18 @@ impl ActionInputs {
     }
 }
 
-fn show_action(actions: &ActionInputs, ui: &mut egui::Ui, item: ActionType, action: Option<&'static str>, prefer_keyboard: bool, active: bool) {
+fn show_action(
+    actions: &ActionInputs,
+    ui: &mut egui::Ui,
+    item: ActionType,
+    action: Option<&'static str>,
+    prefer_keyboard: bool,
+    active: bool,
+) {
     if let Some(input) = actions.items.get(&item).and_then(|v| {
-        v.iter().find(|i| {
-            matches!(i, InputItem::Key(_)) == prefer_keyboard
-        })
+        v.iter()
+            .find(|i| matches!(i, InputItem::Key(_)) == prefer_keyboard)
+            .or(v.iter().next())
     }) {
         ui.horizontal(|ui| {
             if let Some(action) = action {
@@ -817,7 +814,12 @@ fn show_action(actions: &ActionInputs, ui: &mut egui::Ui, item: ActionType, acti
     }
 }
 
-fn show_directions(actions: &ActionInputs, directions: &DisplayDirections, ui: &mut egui::Ui, prefer_keyboard: bool) {
+fn show_directions(
+    actions: &ActionInputs,
+    directions: &DisplayDirections,
+    ui: &mut egui::Ui,
+    prefer_keyboard: bool,
+) {
     ui.style_mut().spacing.item_spacing = egui::vec2(0.0, 0.0);
     let sz_y = egui_extras::Size::exact(23.0);
     let sz_x = egui_extras::Size::exact(30.0);
@@ -879,7 +881,8 @@ fn show_controls(
         .resizable(false)
         .show(egui_context.ctx_mut(), |ui| {
             ui.set_max_width(100.0);
-            let mut enabled_controllers = controllers.iter().filter(|c| c.enabled).collect::<Vec<_>>();
+            let mut enabled_controllers =
+                controllers.iter().filter(|c| c.enabled).collect::<Vec<_>>();
             enabled_controllers.sort_by_key(|c| c.display_order);
             for (i, &controller) in enabled_controllers.iter().enumerate() {
                 if let Some(directions) = &controller.display_directions {
@@ -891,11 +894,25 @@ fn show_controls(
                 for (action_type, action) in controller.actions.iter() {
                     match action.display {
                         DisplayMode::Active => {
-                            show_action(&*actions, ui, *action_type, action.display_text.or(Some(action.label.0)), prefer_keyboard, true);
-                        },
+                            show_action(
+                                &*actions,
+                                ui,
+                                *action_type,
+                                action.display_text.or(Some(action.label.0)),
+                                prefer_keyboard,
+                                true,
+                            );
+                        }
                         DisplayMode::Inactive => {
-                            show_action(&*actions, ui, *action_type, action.display_text.or(Some(action.label.0)), prefer_keyboard, false);
-                        },
+                            show_action(
+                                &*actions,
+                                ui,
+                                *action_type,
+                                action.display_text.or(Some(action.label.0)),
+                                prefer_keyboard,
+                                false,
+                            );
+                        }
                         DisplayMode::Off => (),
                     }
                 }
@@ -907,19 +924,15 @@ fn show_controls(
         });
 }
 
-fn show_status(
-    mut egui_context: ResMut<EguiContext>,
-    set: Res<LevelSet>,
-    def: Res<LevelDef>,
-) {
+fn show_status(mut egui_context: ResMut<EguiContext>, set: Res<LevelSet>, def: Res<LevelDef>) {
     if def.num_holes != 0 {
         egui::Window::new("status")
-        .title_bar(false)
-        .resizable(false)
-        .show(egui_context.ctx_mut(), |ui| {
-            ui.set_max_width(100.0);
-            ui.label(&set.title);
-            ui.label(format!("{}/{}", set.current_level+1, 30));
-        });
+            .title_bar(false)
+            .resizable(false)
+            .show(egui_context.ctx_mut(), |ui| {
+                ui.set_max_width(100.0);
+                ui.label(&set.title);
+                ui.label(format!("{}/{}", set.current_level + 1, 30));
+            });
     }
 }

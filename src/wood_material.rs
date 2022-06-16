@@ -1,4 +1,8 @@
-use bevy::{prelude::*, reflect::TypeUuid, render::render_resource::{*, std140::AsStd140}};
+use bevy::{
+    prelude::*,
+    reflect::TypeUuid,
+    render::render_resource::{std140::AsStd140, *},
+};
 
 use crate::shader::{SimpleTextureMaterial, SimpleTextureSpec};
 

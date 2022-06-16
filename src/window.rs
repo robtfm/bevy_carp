@@ -1,6 +1,6 @@
 use bevy::{prelude::*, window::WindowMode};
 use bevy_pkv::PkvStore;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default, PartialEq, Eq)]
 pub enum WindowModeSerial {
@@ -33,7 +33,7 @@ pub fn descriptor_from_settings(settings: &PkvStore) -> WindowDescriptor {
         Ok(d) => d,
         Err(_) => (1280.0, 720.0),
     };
-    debug!("read: {}/{}",  width, height);
+    debug!("read: {}/{}", width, height);
     let window_pos = settings.get("window pos").ok();
     let mode = settings
         .get::<WindowModeSerial>("window mode")

@@ -7,7 +7,10 @@ use bevy::{
     reflect::TypeUuid,
     render::{
         render_asset::{PrepareAssetError, RenderAsset, RenderAssets},
-        render_resource::{*, std140::{AsStd140, Std140}},
+        render_resource::{
+            std140::{AsStd140, Std140},
+            *,
+        },
         renderer::RenderDevice,
     },
 };
@@ -106,7 +109,7 @@ impl<S: SimpleTextureSpec<Param = P>, P: SystemParam> RenderAsset for SimpleText
             usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
             contents: uniform_data.as_std140().as_bytes(),
         });
-         
+
         let bind_group = render_device.create_bind_group(&BindGroupDescriptor {
             entries: &[
                 BindGroupEntry {
@@ -305,7 +308,7 @@ impl<S: SimpleUniformSpec> Material for SimpleUniformMaterial<S> {
                     ty: BufferBindingType::Uniform,
                     has_dynamic_offset: false,
                     // 0.8: min_binding_size: Some(S::Uniform::min_size()),
-                    min_binding_size: BufferSize::new(S::Uniform::std140_size_static() as u64),                    
+                    min_binding_size: BufferSize::new(S::Uniform::std140_size_static() as u64),
                 },
                 count: None,
             }],
