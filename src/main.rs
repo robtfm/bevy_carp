@@ -239,7 +239,7 @@ fn update_volumes(
         grab_channel.set_volume(sfx.0);
         swoosh_channel.set_volume(sfx.0);
         hammer_channel.set_volume(sfx.0);
-        cut_channel.set_volume(sfx.0);
+        cut_channel.set_volume(sfx.0 * 0.7);
         undo_channel.set_volume(sfx.0);
 
         if last_sfx.is_some() {
@@ -2025,7 +2025,6 @@ fn animate_cuts(
         if prev_cutting.is_none() {
             debug!("begin sound");
             audio.set_playback_rate(0.5);
-            audio.set_volume(0.7);
             audio.play_looped(asset_server.load("audio/zapsplat_office_compass_pencil_draw_circle_on_paper_003_22758-[AudioTrimmer.com].mp3"));
         }
         *prev_cutting = Some(time.seconds_since_startup());
