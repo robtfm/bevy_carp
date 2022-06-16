@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 
-#[derive(Clone, Copy, Deref, PartialEq, Eq)]
+#[derive(Clone, Copy, Deref, PartialEq, Eq, Debug)]
 pub struct ActionLabel(pub &'static str);
 
+#[derive(Debug)]
 pub struct ActionEvent {
     pub sender: Entity,
     pub label: ActionLabel,

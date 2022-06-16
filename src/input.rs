@@ -1,3 +1,4 @@
+use bevy_pkv::PkvStore;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
@@ -20,13 +21,28 @@ impl Plugin for InputPlugin {
             .init_resource::<ActionInputs>()
             .init_resource::<LastControlType>()
             .add_event::<ActionEvent>()
+            .add_event::<NewInputEvent>()
+            // init
+            .add_startup_system(init_settings)
             // ui
             .add_system(show_controls)
             .add_system(show_status)
             // input
             .add_system(pad_connection)
-            .add_system_to_stage(CoreStage::PreUpdate, controller);
+            .add_system_to_stage(CoreStage::PreUpdate, controller)
+            .add_system_to_stage(CoreStage::PreUpdate, new_input_controller)
+        ;
     }
+}
+
+fn init_settings(
+    mut settings: ResMut<PkvStore>,
+    mut inputs: ResMut<ActionInputs>,
+) {
+    match settings.get("inputs") {
+        Ok(set_inputs) => *inputs = set_inputs,
+        Err(_) => settings.set("inputs", &ActionInputs::default()).unwrap(),
+    }    
 }
 
 #[derive(Default)]
@@ -80,11 +96,12 @@ pub enum DisplayMode {
 #[derive(Clone, Copy)]
 pub struct Action {
     pub label: ActionLabel,
+    pub display_text: Option<&'static str>,
     pub sticky: bool,
     pub display: DisplayMode,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
 pub enum ActionType {
     Menu,
     MoveUp,
@@ -105,6 +122,31 @@ pub enum ActionType {
     TurnLeft,
     TurnRight,
 
+}
+
+impl ActionType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ActionType::Menu => "pause",
+            ActionType::MoveUp => "move up",
+            ActionType::MoveDown => "move down",
+            ActionType::MoveLeft => "move left",
+            ActionType::MoveRight => "move right",
+            ActionType::PanUp => "pan up",
+            ActionType::PanDown => "pan down",
+            ActionType::PanLeft => "pan left",
+            ActionType::PanRight => "pan right",
+            ActionType::PanFocus => "focus camera",
+            ActionType::MainAction => "grab / drop / finish cut",
+            ActionType::SecondAction => "cut / cancel cut",
+            ActionType::ThirdAction => "undo",
+            ActionType::FourthAction => "redo",
+            ActionType::ZoomIn => "zoom in",
+            ActionType::ZoomOut => "zoom out",
+            ActionType::TurnLeft => "rotate left",
+            ActionType::TurnRight => "rotate right",
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -136,6 +178,104 @@ pub struct InputParams<'w, 's> {
     _marker: PhantomData<(&'w (), &'s ())>,
 }
 
+#[derive(Component, Default)]
+pub struct NewInputController {
+    pub initialized: bool,
+}
+
+pub struct NewInputEvent(pub Entity, pub InputItem);
+
+const ALL_BUTTONS: [GamepadButtonType; 19] = [
+    GamepadButtonType::South,
+    GamepadButtonType::East,
+    GamepadButtonType::North,
+    GamepadButtonType::West,
+    GamepadButtonType::C,
+    GamepadButtonType::Z,
+    GamepadButtonType::LeftTrigger,
+    GamepadButtonType::LeftTrigger2,
+    GamepadButtonType::RightTrigger,
+    GamepadButtonType::RightTrigger2,
+    GamepadButtonType::Select,
+    GamepadButtonType::Start,
+    GamepadButtonType::Mode,
+    GamepadButtonType::LeftThumb,
+    GamepadButtonType::RightThumb,
+    GamepadButtonType::DPadUp,
+    GamepadButtonType::DPadDown,
+    GamepadButtonType::DPadLeft,
+    GamepadButtonType::DPadRight,
+];
+
+const ALL_AXES: [GamepadAxisType; 8] = [
+    GamepadAxisType::LeftStickX,
+    GamepadAxisType::LeftStickY,
+    GamepadAxisType::LeftZ,
+    GamepadAxisType::RightStickX,
+    GamepadAxisType::RightStickY,
+    GamepadAxisType::RightZ,
+    GamepadAxisType::DPadX,
+    GamepadAxisType::DPadY,
+];
+
+fn new_input_controller(
+    inputs: InputParams,
+    mut controllers: Query<(Entity, &mut NewInputController)>,
+    mut new_inputs: EventWriter<NewInputEvent>,
+    mut already_pressed: Local<HashSet<GamepadButtonType>>,
+    mut already_moved: Local<HashSet<GamepadAxisType>>,
+) {
+    for (ent, mut options) in
+        controllers.iter_mut()
+    {
+        if !options.initialized {
+            options.initialized = true;
+
+            if let Some(pad) = inputs.pad.0 {
+                for button_type in ALL_BUTTONS.iter() {
+                    if inputs.buttons.get(GamepadButton(pad, *button_type)).unwrap() > 0.5 {
+                        already_pressed.insert(*button_type);
+                    }
+                }
+
+                for axis_type in ALL_AXES.iter() {
+                    if inputs.axes.get(GamepadAxis(pad, *axis_type)).unwrap().abs() > 0.5 {
+                        already_moved.insert(*axis_type);
+                    }
+                }
+            }
+            continue;
+        }
+
+        for k in inputs.key_input.get_just_pressed() {
+            new_inputs.send(NewInputEvent(ent, InputItem::Key(*k)))
+        }
+
+        if let Some(pad) = inputs.pad.0 {
+            for button_type in ALL_BUTTONS.iter() {
+                if inputs.buttons.get(GamepadButton(pad, *button_type)).unwrap() > 0.5 && !already_pressed.contains(button_type) {
+                    new_inputs.send(NewInputEvent(ent, InputItem::Button(*button_type)));
+                }
+            }
+
+            for axis_type in ALL_AXES.iter() {
+                let axis_val = inputs.axes.get(GamepadAxis(pad, *axis_type)).unwrap();
+                if axis_val.abs() > 0.5 && !already_moved.contains(axis_type) {
+                    new_inputs.send(NewInputEvent(ent, InputItem::Axis(*axis_type, axis_val > 0.0)));
+                }
+            }
+
+            already_pressed.retain(|button_type| {
+                inputs.buttons.get(GamepadButton(pad, *button_type)).unwrap() > 0.5
+            });
+
+            already_moved.retain(|axis_type| {
+                inputs.axes.get(GamepadAxis(pad, *axis_type)).unwrap().abs() > 0.5
+            });
+        }
+    }
+}
+
 fn controller(
     inputs: InputParams,
     mut controllers: Query<(
@@ -146,7 +286,6 @@ fn controller(
     mut mapping: ResMut<ActionInputs>,
     mut last_used: ResMut<LastControlType>,
 ) {
-    // Handle key input
     for (ent, mut options) in
         controllers.iter_mut()
     {
@@ -177,7 +316,7 @@ pub enum LastControlType {
     Gamepad,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum InputItem {
     Key(KeyCode),
     Axis(GamepadAxisType, bool),
@@ -314,7 +453,7 @@ impl InputItem {
                         painter.rect_filled(
                             egui::Rect::from_center_size(
                                 tl + origin.into(),
-                                egui::vec2(step / 2.0, step / 2.0),
+                                egui::vec2(step, step),
                             ),
                             egui::Rounding::none(),
                             color,
@@ -323,7 +462,7 @@ impl InputItem {
                         painter.rect_stroke(
                             egui::Rect::from_center_size(
                                 tl + origin.into(),
-                                egui::vec2(step / 2.0, step / 2.0),
+                                egui::vec2(step, step),
                             ),
                             egui::Rounding::none(),
                             stroke,
@@ -415,9 +554,9 @@ impl InputItem {
                     GamepadButtonType::East => draw_buttons(false, 1, color, ui),
                     GamepadButtonType::North => draw_buttons(false, 0, color, ui),
                     GamepadButtonType::West => draw_buttons(false, 3, color, ui),
-                    GamepadButtonType::DPadUp => draw_buttons(true, 2, color, ui),
+                    GamepadButtonType::DPadUp => draw_buttons(true, 0, color, ui),
                     GamepadButtonType::DPadRight => draw_buttons(true, 1, color, ui),
-                    GamepadButtonType::DPadDown => draw_buttons(true, 0, color, ui),
+                    GamepadButtonType::DPadDown => draw_buttons(true, 2, color, ui),
                     GamepadButtonType::DPadLeft => draw_buttons(true, 3, color, ui),
                     b => draw_key(format!("{:?}", b), ui, color),
                     // GamepadButtonType::C => todo!(),
@@ -433,9 +572,9 @@ impl InputItem {
 }
 
 #[derive(Serialize, Deserialize)]
-#[serde(bound(deserialize = "'de: 'static"))]
+// #[serde(bound(deserialize = "'de: 'static"))]
 pub struct ActionInputs {
-    items: HashMap<ActionType, Vec<InputItem>>,
+    pub items: HashMap<ActionType, Vec<InputItem>>,
     #[serde(skip)]
     prev: HashSet<ActionType>,
     #[serde(skip)]
@@ -658,7 +797,7 @@ impl ActionInputs {
     }
 }
 
-fn show_action(actions: &ActionInputs, ui: &mut egui::Ui, item: ActionType, action: Option<ActionLabel>, prefer_keyboard: bool, active: bool) {
+fn show_action(actions: &ActionInputs, ui: &mut egui::Ui, item: ActionType, action: Option<&'static str>, prefer_keyboard: bool, active: bool) {
     if let Some(input) = actions.items.get(&item).and_then(|v| {
         v.iter().find(|i| {
             matches!(i, InputItem::Key(_)) == prefer_keyboard
@@ -666,7 +805,7 @@ fn show_action(actions: &ActionInputs, ui: &mut egui::Ui, item: ActionType, acti
     }) {
         ui.horizontal(|ui| {
             if let Some(action) = action {
-                let mut text: egui::RichText = format!("{}: ", action.0).into();
+                let mut text: egui::RichText = format!("{}: ", action).into();
                 if !active {
                     text = text.color(egui::Color32::from_rgb(50, 50, 100));
                 }
@@ -752,10 +891,10 @@ fn show_controls(
                 for (action_type, action) in controller.actions.iter() {
                     match action.display {
                         DisplayMode::Active => {
-                            show_action(&*actions, ui, *action_type, Some(action.label), prefer_keyboard, true);
+                            show_action(&*actions, ui, *action_type, action.display_text.or(Some(action.label.0)), prefer_keyboard, true);
                         },
                         DisplayMode::Inactive => {
-                            show_action(&*actions, ui, *action_type, Some(action.label), prefer_keyboard, false);
+                            show_action(&*actions, ui, *action_type, action.display_text.or(Some(action.label.0)), prefer_keyboard, false);
                         },
                         DisplayMode::Off => (),
                     }

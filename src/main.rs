@@ -29,7 +29,7 @@ const PLANK_Z_DONE: f32 = 0.25;
 
 use bevy_pkv::PkvStore;
 use input::{Controller, InputPlugin, ActionType, Action, DisplayDirections, DisplayMode};
-use menus::{spawn_in_level_menu, spawn_main_menu, spawn_play_menu, spawn_popup_menu, PopupMenuEvent};
+use menus::{spawn_in_level_menu, spawn_main_menu, spawn_play_menu, spawn_popup_menu, PopupMenuEvent, spawn_controls};
 use rand::{prelude::SliceRandom, thread_rng, Rng, SeedableRng};
 
 use bevy::{
@@ -148,6 +148,7 @@ fn main() {
         .add_system(spawn_credits)
         .add_system(spawn_popup_menu)
         .add_system(spawn_options_menu)
+        .add_system(spawn_controls)
         // setup level
         .add_system(setup_level) // generate the level from the def
         .add_system_to_stage(CoreStage::PreUpdate, create_level) // (re)spawn a level. should have its own stage really
@@ -179,6 +180,7 @@ fn main() {
         .add_system_to_stage(CoreStage::PostUpdate, change_state)
         // camera management
         .add_system_to_stage(CoreStage::PostUpdate, camera_focus)
+        // .add_system(debug_actions)
         .run();
 }
 
@@ -196,7 +198,7 @@ fn splash(
     server: Res<AssetServer>,
 ) {
     evs.send(ActionEvent {
-        sender: Entity::from_raw(0),
+        sender: Entity::from_raw(99),
         label: ActionLabel("main menu"),
         target: None,
     });
@@ -262,7 +264,11 @@ fn update_speed_settings(
     }
 }
 
-fn warm_assets(asset_server: Res<AssetServer>, mut handles: Local<Vec<HandleUntyped>>) {
+fn warm_assets(mut commands: Commands, asset_server: Res<AssetServer>, mut handles: Local<Vec<HandleUntyped>>) {
+    // spawn an entity so that 0v0 is taken
+    let id = commands.spawn().id();
+    commands.entity(id).despawn();
+
     *handles = vec![
         asset_server.load::<AudioSource, _>("audio/aaj_0404_HamrNail4Hits.mp3").clone_untyped(),
         asset_server.load::<AudioSource, _>("audio/industrial_tools_hand_saw_hang_on_hook.mp3").clone_untyped(),
@@ -534,9 +540,9 @@ fn create_level(
         commands.spawn().insert(Controller {
             display_order: 0,
             actions: vec![
-                (ActionType::Menu, Action{ label: ActionLabel("pause"), sticky: true, display: DisplayMode::Active }),
-                (ActionType::ThirdAction, Action{ label: ActionLabel("undo"), sticky: true, display: DisplayMode::Active }),
-                (ActionType::FourthAction, Action{ label: ActionLabel("redo"), sticky: true, display: DisplayMode::Active }),
+                (ActionType::Menu, Action{ label: ActionLabel("pause"), sticky: true, display: DisplayMode::Active, display_text: None }),
+                (ActionType::ThirdAction, Action{ label: ActionLabel("undo"), sticky: true, display: DisplayMode::Active, display_text: None }),
+                (ActionType::FourthAction, Action{ label: ActionLabel("redo"), sticky: true, display: DisplayMode::Active, display_text: None }),
             ],
             enabled: true,
             ..Default::default()
@@ -599,13 +605,13 @@ fn create_level(
                 display_directions: Some(DisplayDirections{ label: "pan".into(), up: ActionType::PanUp, down: ActionType::PanDown, left: ActionType::PanLeft, right: ActionType::PanRight }),
                 enabled: true,
                 actions: vec![
-                    (ActionType::PanUp, Action{ label: ActionLabel("up"), sticky: false, display: DisplayMode::Off }),
-                    (ActionType::PanDown, Action{ label: ActionLabel("down"), sticky: false, display: DisplayMode::Off }),
-                    (ActionType::PanLeft, Action{ label: ActionLabel("left"), sticky: false, display: DisplayMode::Off }),
-                    (ActionType::PanRight, Action{ label: ActionLabel("right"), sticky: false, display: DisplayMode::Off }),
-                    (ActionType::ZoomIn, Action{ label: ActionLabel("forward"), sticky: false, display: DisplayMode::Active }),
-                    (ActionType::ZoomOut, Action{ label: ActionLabel("backward"), sticky: false, display: DisplayMode::Active }),
-                    (ActionType::PanFocus, Action{ label: ActionLabel("focus"), sticky: true, display: DisplayMode::Active }),
+                    (ActionType::PanUp, Action{ label: ActionLabel("up"), sticky: false, display: DisplayMode::Off, display_text: None }),
+                    (ActionType::PanDown, Action{ label: ActionLabel("down"), sticky: false, display: DisplayMode::Off, display_text: None }),
+                    (ActionType::PanLeft, Action{ label: ActionLabel("left"), sticky: false, display: DisplayMode::Off, display_text: None }),
+                    (ActionType::PanRight, Action{ label: ActionLabel("right"), sticky: false, display: DisplayMode::Off, display_text: None }),
+                    (ActionType::ZoomIn, Action{ label: ActionLabel("forward"), sticky: false, display: DisplayMode::Active, display_text: None }),
+                    (ActionType::ZoomOut, Action{ label: ActionLabel("backward"), sticky: false, display: DisplayMode::Active, display_text: None }),
+                    (ActionType::PanFocus, Action{ label: ActionLabel("focus"), sticky: true, display: DisplayMode::Active, display_text: None }),
                 ],
                 ..Default::default()
             })
@@ -626,12 +632,12 @@ fn create_level(
                 display_directions: Some(DisplayDirections{ label: "move".into(), up: ActionType::MoveUp, down: ActionType::MoveDown, left: ActionType::MoveLeft, right: ActionType::MoveRight }),
                 enabled: true,
                 actions: vec![
-                    (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: false, display: DisplayMode::Off }),
-                    (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: false, display: DisplayMode::Off }),
-                    (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: false, display: DisplayMode::Off }),
-                    (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: false, display: DisplayMode::Off }),
-                    (ActionType::MainAction, Action{ label: ActionLabel("grab"), sticky: true, display: DisplayMode::Active }),
-                    (ActionType::SecondAction, Action{ label: ActionLabel("cut"), sticky: true, display: DisplayMode::Active }),
+                    (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: false, display: DisplayMode::Off, display_text: None }),
+                    (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: false, display: DisplayMode::Off, display_text: None }),
+                    (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: false, display: DisplayMode::Off, display_text: None }),
+                    (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: false, display: DisplayMode::Off, display_text: None }),
+                    (ActionType::MainAction, Action{ label: ActionLabel("grab"), sticky: true, display: DisplayMode::Active, display_text: None }),
+                    (ActionType::SecondAction, Action{ label: ActionLabel("cut"), sticky: true, display: DisplayMode::Active, display_text: None }),
                 ],
                 ..Default::default()
             })
@@ -981,12 +987,12 @@ fn grab_or_drop(
                         display_order: 4,
                         enabled: true,
                         actions: vec![
-                            (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: false, display: DisplayMode::Off }),
-                            (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: false, display: DisplayMode::Off }),
-                            (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: false, display: DisplayMode::Off }),
-                            (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: false, display: DisplayMode::Off }),
-                            (ActionType::TurnLeft, Action{ label: ActionLabel("rotate left"), sticky: true, display: DisplayMode::Active }),
-                            (ActionType::TurnRight, Action{ label: ActionLabel("rotate right"), sticky: true, display: DisplayMode::Active }),
+                            (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: false, display: DisplayMode::Off, display_text: None }),
+                            (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: false, display: DisplayMode::Off, display_text: None }),
+                            (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: false, display: DisplayMode::Off, display_text: None }),
+                            (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: false, display: DisplayMode::Off, display_text: None }),
+                            (ActionType::TurnLeft, Action{ label: ActionLabel("rotate left"), sticky: true, display: DisplayMode::Active, display_text: None }),
+                            (ActionType::TurnRight, Action{ label: ActionLabel("rotate right"), sticky: true, display: DisplayMode::Active, display_text: None }),
                         ],
                         ..Default::default()
                     });
@@ -1265,12 +1271,12 @@ fn cut_plank(
                             display_directions: Some(DisplayDirections{ label: "Cut".into(), up: ActionType::MoveUp, down: ActionType::MoveDown, left: ActionType::MoveLeft, right: ActionType::MoveRight }),
                             enabled: true,
                             actions: vec![
-                                (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: false, display: DisplayMode::Off }),
-                                (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: false, display: DisplayMode::Off }),
-                                (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: false, display: DisplayMode::Off }),
-                                (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: false, display: DisplayMode::Off }),
-                                (ActionType::MainAction, Action{ label: ActionLabel("finish cut"), sticky: true, display: DisplayMode::Active }),
-                                (ActionType::SecondAction, Action{ label: ActionLabel("cancel"), sticky: true, display: DisplayMode::Active }),
+                                (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: false, display: DisplayMode::Off, display_text: None }),
+                                (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: false, display: DisplayMode::Off, display_text: None }),
+                                (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: false, display: DisplayMode::Off, display_text: None }),
+                                (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: false, display: DisplayMode::Off, display_text: None }),
+                                (ActionType::MainAction, Action{ label: ActionLabel("finish cut"), sticky: true, display: DisplayMode::Active, display_text: None }),
+                                (ActionType::SecondAction, Action{ label: ActionLabel("cancel"), sticky: true, display: DisplayMode::Active, display_text: None }),
                             ],
                             ..Default::default()
                         })
@@ -1442,7 +1448,7 @@ fn change_state(
                 let current_is_action = undo.current_state().is_action;
 
                 if to_drop.get_single().is_ok() {
-                    action_to_send = Some("grab");
+                    action_to_send = Some("drop");
                     break;
                 }
 
@@ -1485,7 +1491,7 @@ fn change_state(
                 );
 
                 if to_drop.get_single().is_ok() {
-                    action_to_send = Some("grab");
+                    action_to_send = Some("drop");
                     break;
                 }
 
@@ -2177,5 +2183,14 @@ fn check_cut_actions(
         }
 
         set(&mut controller, "cut", !has_select && has_target);
+    }
+}
+
+#[allow(unused)]
+fn debug_actions(
+    mut evs: EventReader<ActionEvent>,
+) {
+    for ev in evs.iter() {
+        println!("{:?}", ev);
     }
 }

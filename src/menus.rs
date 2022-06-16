@@ -9,7 +9,7 @@ use bevy_pkv::PkvStore;
 use egui_extras::StripBuilder;
 
 use crate::{
-    input::{ActionType, Action, Controller, DisplayMode},
+    input::{ActionType, Action, Controller, DisplayMode, InputItem, ActionInputs, NewInputEvent, NewInputController},
     model::{CoordSet, LevelBase},
     spawn_random,
     structs::{
@@ -25,6 +25,7 @@ pub enum MenuItem {
     Text(&'static str),
     DynText(String),
     Slider(i32, i32),
+    InputList{ items: Vec<InputItem>, focus: Option<usize> },
 }
 
 impl From<&'static str> for MenuItem {
@@ -91,7 +92,48 @@ impl MenuItem {
                     let max = rect.left_top() + egui::vec2(1.0 + ((i+1) as f32 * per), rect.height() - 4.0);
                     painter.rect_filled(egui::Rect{ min, max }, egui::Rounding::none(), fill_color);
                 }
-            }
+            },
+            MenuItem::InputList{ items, focus } => {
+                let count = if focus.is_some() {
+                    items.len() + 1
+                } else {
+                    items.len()
+                };
+
+                let req_size = count as f32 * 100.0;
+                let mut rect = ui.max_rect();
+                if req_size > rect.width() {
+                    let extra = rect.width() - req_size / 2.0;
+                    rect.min.x += extra;
+                    rect.max.x -= extra;
+                }
+
+                if let Some(bg) = bg {
+                    if focus.is_none() {
+                        ui.painter().rect_filled(rect, egui::Rounding::none(), bg);
+                    } else {
+                        ui.painter().rect_stroke(rect, egui::Rounding::none(), egui::Stroke{ width: 1.0, color: bg});
+                    }
+                }
+
+                for (i, item) in items.iter().enumerate() {
+                    let rect = egui::Rect{ min: rect.min + egui::vec2(i as f32 * 100.0, 0.0), max: egui::pos2(rect.min.x + i as f32 * 100.0 + 100.0, rect.max.y) };
+                    if Some(i) == *focus {
+                        ui.painter().rect_filled(rect, egui::Rounding::none(), egui::Rgba::from_rgba_premultiplied(0.6, 0.2, 0.2, 0.2));
+                    }
+                    let mut ui = ui.child_ui(rect, egui::Layout::top_down(egui::Align::Center));
+                    item.print(&mut ui, true);
+                } 
+
+                if let Some(focus) = focus {
+                    let rect = egui::Rect{ min: rect.min + egui::vec2(items.len() as f32 * 100.0, 0.0), max: egui::pos2(rect.min.x + items.len() as f32 * 100.0 + 100.0, rect.max.y) };
+                    if items.len() == *focus {
+                        ui.painter().rect_filled(rect, egui::Rounding::same(3.0), egui::Rgba::from_rgba_premultiplied(0.2, 0.6, 0.2, 0.2));
+                    }
+                    let mut ui = ui.child_ui(rect, egui::Layout::top_down(egui::Align::Center));
+                    ui.label("ADD");
+                }
+            }            
         }
     }
 }
@@ -291,14 +333,19 @@ pub fn spawn_credits(mut ev: EventReader<ActionEvent>, mut menu: EventWriter<Pop
                         ("".into(), ActionLabel(""), false),
                         ("".into(), ActionLabel(""), false),
                         ("".into(), ActionLabel(""), false),
-                        ("Music and SFX".into(), ActionLabel(""), false),
+                        ("SFX".into(), ActionLabel(""), false),
                         ("".into(), ActionLabel(""), false),
                         ("zapsplat".into(), ActionLabel(""), false),
                         ("".into(), ActionLabel(""), false),
                         ("".into(), ActionLabel(""), false),
+                        ("Music".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("Alexander".into(), ActionLabel(""), false),
                         ("".into(), ActionLabel(""), false),
                         ("".into(), ActionLabel(""), false),
-                        ("Alexander Nakarada".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("".into(), ActionLabel(""), false),
+                        ("Nakarada".into(), ActionLabel(""), false),
                         ("".into(), ActionLabel(""), false),
                         ("".into(), ActionLabel(""), false),
                         ("".into(), ActionLabel(""), false),
@@ -307,7 +354,7 @@ pub fn spawn_credits(mut ev: EventReader<ActionEvent>, mut menu: EventWriter<Pop
                         ("".into(), ActionLabel(""), false),
                     ],
                     cancel_action: Some(ActionLabel("main menu")),
-                    header_size: 0.3,
+                    header_size: 0.25,
                     width: 5,
                     inactive_color: egui::Color32::from_rgb(255, 255, 255),
                     text_size: 30.0,
@@ -487,26 +534,26 @@ pub fn spawn_popup_menu(
 
         if ev.menu.modal_controller.is_none() {
             let mut actions = vec![
-                (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: true, display: DisplayMode::Active }),
-                (ActionType::PanUp, Action{ label: ActionLabel("up"), sticky: true, display: DisplayMode::Off }),
-                (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: true, display: DisplayMode::Active }),
-                (ActionType::PanDown, Action{ label: ActionLabel("down"), sticky: true, display: DisplayMode::Off }),
-                (ActionType::MainAction, Action{ label: ActionLabel("select"), sticky: true, display: DisplayMode::Active }),
+                (ActionType::MoveUp, Action{ label: ActionLabel("up"), sticky: true, display: DisplayMode::Active, display_text: None }),
+                (ActionType::PanUp, Action{ label: ActionLabel("up"), sticky: true, display: DisplayMode::Off, display_text: None }),
+                (ActionType::MoveDown, Action{ label: ActionLabel("down"), sticky: true, display: DisplayMode::Active, display_text: None }),
+                (ActionType::PanDown, Action{ label: ActionLabel("down"), sticky: true, display: DisplayMode::Off, display_text: None }),
+                (ActionType::MainAction, Action{ label: ActionLabel("select"), sticky: true, display: DisplayMode::Active, display_text: None }),
             ];
     
             if ev.menu.cancel_action.is_some() {
                 actions.extend(vec![
-                    (ActionType::SecondAction, Action{ label: ActionLabel("cancel"), sticky: true, display: DisplayMode::Active }),
-                    (ActionType::Menu, Action{ label: ActionLabel("cancel"), sticky: true, display: DisplayMode::Off }),
+                    (ActionType::SecondAction, Action{ label: ActionLabel("cancel"), sticky: true, display: DisplayMode::Active, display_text: None }),
+                    (ActionType::Menu, Action{ label: ActionLabel("cancel"), sticky: true, display: DisplayMode::Off, display_text: None }),
                 ]);
             }
     
             if ev.menu.width > 1 {
                 actions.extend(vec![
-                    (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: true, display: DisplayMode::Active }),
-                    (ActionType::PanLeft, Action{ label: ActionLabel("left"), sticky: true, display: DisplayMode::Off }),
-                    (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: true, display: DisplayMode::Active }),
-                    (ActionType::PanRight, Action{ label: ActionLabel("right"), sticky: true, display: DisplayMode::Off }),
+                    (ActionType::MoveLeft, Action{ label: ActionLabel("left"), sticky: true, display: DisplayMode::Active, display_text: None }),
+                    (ActionType::PanLeft, Action{ label: ActionLabel("left"), sticky: true, display: DisplayMode::Off, display_text: None }),
+                    (ActionType::MoveRight, Action{ label: ActionLabel("right"), sticky: true, display: DisplayMode::Active, display_text: None }),
+                    (ActionType::PanRight, Action{ label: ActionLabel("right"), sticky: true, display: DisplayMode::Off, display_text: None }),
                 ]);
             }
     
@@ -612,7 +659,10 @@ pub fn spawn_popup_menu(
         if menu_items.get(ev.sender).is_ok() {
             match ev.label.0 {
                 "up" | "left" => {
-                    let active_items = &active_menu.as_ref().unwrap().0.items;
+                    let Some(menu) = &active_menu.as_ref() else {
+                        continue;
+                    };
+                    let active_items = &menu.0.items;
                     let width = match ev.label.0 {
                         "up" => active_menu.as_ref().unwrap().0.width,
                         "left" => 1,
@@ -637,7 +687,10 @@ pub fn spawn_popup_menu(
                     audio.play(asset_server.load("audio/zapsplat_multimedia_alert_mallet_hit_short_single_generic_003_79278.mp3"));
                 }
                 "down" | "right" => {
-                    let active_items = &active_menu.as_ref().unwrap().0.items;
+                    let Some(menu) = &active_menu.as_ref() else {
+                        continue;
+                    };
+                    let active_items = &menu.0.items;
                     let width = match ev.label.0 {
                         "down" => active_menu.as_ref().unwrap().0.width,
                         "right" => 1,
@@ -662,7 +715,10 @@ pub fn spawn_popup_menu(
                     audio.play(asset_server.load("audio/zapsplat_multimedia_alert_mallet_hit_short_single_generic_003_79278.mp3"));
                 }
                 "cancel" => {
-                    let Some(cancel_action) = active_menu.as_ref().unwrap().0.cancel_action else {
+                    let Some(menu) = &active_menu.as_ref() else {
+                        continue;
+                    };
+                    let Some(cancel_action) = menu.0.cancel_action else {
                         continue;
                     };
 
@@ -677,7 +733,7 @@ pub fn spawn_popup_menu(
                     }
 
                     to_send = Some(ActionEvent {
-                        sender: ev.sender,
+                        sender: active_menu.as_ref().unwrap().1,
                         label: cancel_action,
                         target: None,
                     });
@@ -690,13 +746,16 @@ pub fn spawn_popup_menu(
                         commands.entity(item).despawn_recursive();
                     }
 
+                    let Some((menu, sender)) = active_menu.take() else {
+                        continue;
+                    };
+
                     for (ent, mut controller) in other_controllers.iter_mut() {
                         if let Some(prev) = prev_controller_state.get(&ent) {
                             controller.enabled = *prev;
                         }
                     }
 
-                    let (menu, sender) = active_menu.take().unwrap();
                     to_send = Some(ActionEvent {
                         sender: sender,
                         label: menu.items[*menu_position].1,
@@ -727,18 +786,23 @@ pub fn spawn_options_menu(
     mut cutter_speed: ResMut<CutSpeed>,
     mut music: ResMut<MusicVolume>,
     mut sfx: ResMut<SfxVolume>,
+    mut sender: Local<EntityMarker>,
+    mut modal_sender: Local<EntityMarker>,
 ) {
-
+    if matches!(*sender, EntityMarker::None) {
+        *sender = commands.spawn().id().into();
+    }
+    
     let slide_controller = |left: &'static str, right: &'static str| -> Controller {
         Controller {
             display_order: 5,
             actions: vec![
-                (ActionType::MoveLeft, Action{ label: ActionLabel(left), sticky: false, display: DisplayMode::Active }),
-                (ActionType::PanLeft, Action{ label: ActionLabel(left), sticky: false, display: DisplayMode::Off }),
-                (ActionType::MoveRight, Action{ label: ActionLabel(right), sticky: false, display: DisplayMode::Active }),
-                (ActionType::PanRight, Action{ label: ActionLabel(right), sticky: false, display: DisplayMode::Off }),
-                (ActionType::MainAction, Action{ label: ActionLabel("done"), sticky: true, display: DisplayMode::Active }),
-                (ActionType::SecondAction, Action{ label: ActionLabel("done"), sticky: true, display: DisplayMode::Off }),
+                (ActionType::MoveLeft, Action{ label: ActionLabel(left), sticky: false, display: DisplayMode::Active, display_text: None }),
+                (ActionType::PanLeft, Action{ label: ActionLabel(left), sticky: false, display: DisplayMode::Off, display_text: None }),
+                (ActionType::MoveRight, Action{ label: ActionLabel(right), sticky: false, display: DisplayMode::Active, display_text: None }),
+                (ActionType::PanRight, Action{ label: ActionLabel(right), sticky: false, display: DisplayMode::Off, display_text: None }),
+                (ActionType::MainAction, Action{ label: ActionLabel("done"), sticky: true, display: DisplayMode::Active, display_text: None }),
+                (ActionType::SecondAction, Action{ label: ActionLabel("done"), sticky: true, display: DisplayMode::Off, display_text: None }),
             ],
             enabled: true,
             ..Default::default()
@@ -752,10 +816,9 @@ pub fn spawn_options_menu(
     while !reader.is_empty(&evs) {
         to_send = None;
         for ev in reader.iter(&evs) {
+            // any sender
             match ev.label.0 {
                 "options" => {
-                    // if ev.sender == 
-
                     let window_mode = match settings.get::<WindowModeSerial>("window mode").unwrap_or_default() {
                         WindowModeSerial::Fullscreen => "Full screen",
                         WindowModeSerial::Windowed => "Windowed",
@@ -766,7 +829,7 @@ pub fn spawn_options_menu(
                     };
         
                     spawn.send(PopupMenuEvent{ 
-                        sender: Entity::from_raw(0), 
+                        sender: sender.entity(), 
                         menu: PopupMenu { 
                             heading: "Options".into(), 
                             items: vec![
@@ -782,6 +845,8 @@ pub fn spawn_options_menu(
                                 (MenuItem::Slider((cursor_speed.0 * 100.0/30.0) as i32, 100), ActionLabel("cursor speed"), true),
                                 ("Cutter Speed".into(), ActionLabel(""), false),
                                 (MenuItem::Slider((cutter_speed.0 * 10.0) as i32, 100), ActionLabel("cutter speed"), true),
+                                ("Controls".into(), ActionLabel(""), false),
+                                ("Edit".into(), ActionLabel("controls"), true),
                                 ("".into(), ActionLabel(""), false),
                                 ("".into(), ActionLabel(""), false),
                                 ("".into(), ActionLabel(""), false),
@@ -797,105 +862,362 @@ pub fn spawn_options_menu(
                         }, 
                         sound: false,
                     });
-                }
-                "toggle fullscreen" => {
-                    let new_mode = match settings.get::<WindowModeSerial>("window mode").unwrap_or_default() {
-                        WindowModeSerial::Fullscreen => WindowModeSerial::Windowed,
-                        WindowModeSerial::Windowed => WindowModeSerial::Fullscreen,
-                    };
-    
-                    settings.set("window mode", &new_mode).unwrap();
-                    update_window(&*settings, windows.get_primary_mut().unwrap());
-                    to_send = Some("options");
-                }
-                "toggle controls help" => {
-                    control_help.0 = !control_help.0;
-                    settings.set("control help", &control_help.0).unwrap();
-                    to_send = Some("options");
-                }
-                "music" => {
-                    let controller = commands
-                        .spawn()
-                        .insert(slide_controller("music down", "music up"))
-                        .id();
-                    modal_entity = Some(controller);
-                    to_send = Some("options");
-                }
-                "music up" => {
-                    music.0 = f32::min(1.0, music.0 + 0.01);
-                    modal_entity = Some(ev.sender);
-                    to_send = Some("options")
-                }
-                "music down" => {
-                    music.0 = f32::max(0.0, music.0 - 0.01);
-                    modal_entity = Some(ev.sender);
-                    to_send = Some("options")
-                }
-                "sfx" => {
-                    let controller = commands
-                        .spawn()
-                        .insert(slide_controller("fx down", "fx up"))
-                        .id();
-                    modal_entity = Some(controller);
-                    to_send = Some("options");
-                }
-                "fx up" => {
-                    sfx.0 = f32::min(1.0, sfx.0 + 0.01);
-                    modal_entity = Some(ev.sender);
-                    to_send = Some("options")
-                }
-                "fx down" => {
-                    sfx.0 = f32::max(0.0, sfx.0 - 0.01);
-                    modal_entity = Some(ev.sender);
-                    to_send = Some("options")
-                }
-                "cursor speed" => {
-                    let controller = commands
-                        .spawn()
-                        .insert(slide_controller("slower cursor", "faster cursor"))
-                        .id();
-                    modal_entity = Some(controller);
-                    to_send = Some("options");
-                }
-                "faster cursor" => {
-                    cursor_speed.0 = f32::min(30.0, cursor_speed.0 + 0.3);
-                    modal_entity = Some(ev.sender);
-                    to_send = Some("options")
-                }
-                "slower cursor" => {
-                    cursor_speed.0 = f32::max(1.0, cursor_speed.0 - 0.3);
-                    modal_entity = Some(ev.sender);
-                    to_send = Some("options")
-                }
-                "cutter speed" => {
-                    let controller = commands
-                        .spawn()
-                        .insert(slide_controller("slower cutter", "faster cutter"))
-                        .id();
-                    modal_entity = Some(controller);
-                    to_send = Some("options");
-                }
-                "faster cutter" => {
-                    cutter_speed.0 = f32::min(10.0, cutter_speed.0 + 0.1);
-                    modal_entity = Some(ev.sender);
-                    to_send = Some("options")
-                }
-                "slower cutter" => {
-                    cutter_speed.0 = f32::max(1.0, cutter_speed.0 - 0.1);
-                    modal_entity = Some(ev.sender);
-                    to_send = Some("options")
-                }
-                "done" => {
-                    commands.entity(ev.sender).despawn_recursive();
-                    to_send = Some("options");
-                }
+
+                    *modal_sender = modal_entity.into();
+                },
                 _ => ()
+            }
+
+            // just our top-level sender
+            if sender.matches(&ev.sender) {
+                match ev.label.0 {
+
+                    "toggle fullscreen" => {
+                        let new_mode = match settings.get::<WindowModeSerial>("window mode").unwrap_or_default() {
+                            WindowModeSerial::Fullscreen => WindowModeSerial::Windowed,
+                            WindowModeSerial::Windowed => WindowModeSerial::Fullscreen,
+                        };
+        
+                        settings.set("window mode", &new_mode).unwrap();
+                        update_window(&*settings, windows.get_primary_mut().unwrap());
+                        to_send = Some("options");
+                    }
+                    "toggle controls help" => {
+                        control_help.0 = !control_help.0;
+                        settings.set("control help", &control_help.0).unwrap();
+                        to_send = Some("options");
+                    }
+                    "music" => {
+                        let controller = commands
+                            .spawn()
+                            .insert(slide_controller("music down", "music up"))
+                            .id();
+                        modal_entity = Some(controller);
+                        to_send = Some("options");
+                    }
+                    "sfx" => {
+                        let controller = commands
+                            .spawn()
+                            .insert(slide_controller("fx down", "fx up"))
+                            .id();
+                        modal_entity = Some(controller);
+                        to_send = Some("options");
+                    }
+                    "cursor speed" => {
+                        let controller = commands
+                            .spawn()
+                            .insert(slide_controller("slower cursor", "faster cursor"))
+                            .id();
+                        modal_entity = Some(controller);
+                        to_send = Some("options");
+                    }
+                    "cutter speed" => {
+                        let controller = commands
+                            .spawn()
+                            .insert(slide_controller("slower cutter", "faster cutter"))
+                            .id();
+                        modal_entity = Some(controller);
+                        to_send = Some("options");
+                    }
+                    _ => ()
+                }
+            }
+
+            // just our modal sender
+            if modal_sender.matches(&ev.sender) {
+                match ev.label.0 {
+                    "music up" => {
+                        music.0 = f32::min(1.0, music.0 + 0.01);
+                        modal_entity = Some(ev.sender);
+                        to_send = Some("options")
+                    }
+                    "music down" => {
+                        music.0 = f32::max(0.0, music.0 - 0.01);
+                        modal_entity = Some(ev.sender);
+                        to_send = Some("options")
+                    }
+                    "fx up" => {
+                        sfx.0 = f32::min(1.0, sfx.0 + 0.01);
+                        modal_entity = Some(ev.sender);
+                        to_send = Some("options")
+                    }
+                    "fx down" => {
+                        sfx.0 = f32::max(0.0, sfx.0 - 0.01);
+                        modal_entity = Some(ev.sender);
+                        to_send = Some("options")
+                    }
+                    "faster cursor" => {
+                        cursor_speed.0 = f32::min(30.0, cursor_speed.0 + 0.3);
+                        modal_entity = Some(ev.sender);
+                        to_send = Some("options")
+                    }
+                    "slower cursor" => {
+                        cursor_speed.0 = f32::max(1.0, cursor_speed.0 - 0.3);
+                        modal_entity = Some(ev.sender);
+                        to_send = Some("options")
+                    }
+                    "faster cutter" => {
+                        cutter_speed.0 = f32::min(10.0, cutter_speed.0 + 0.1);
+                        modal_entity = Some(ev.sender);
+                        to_send = Some("options")
+                    }
+                    "slower cutter" => {
+                        cutter_speed.0 = f32::max(1.0, cutter_speed.0 - 0.1);
+                        modal_entity = Some(ev.sender);
+                        to_send = Some("options")
+                    }
+                    "done" => {
+                        commands.entity(ev.sender).despawn_recursive();
+                        to_send = Some("options");
+                    }    
+                    _ => ()
+                }
             }
         }
     
         if let Some(action) = to_send {
-            evs.send(ActionEvent{sender: Entity::from_raw(0), label: ActionLabel(action), target: None});
+            evs.send(ActionEvent{sender: sender.entity(), label: ActionLabel(action), target: None});
             keep_position = true;
         } 
+    }
+}
+
+#[derive(Default, PartialEq, Eq, PartialOrd, Ord)]
+pub enum EntityMarker {
+    E(Entity),
+    #[default]
+    None,
+}
+
+impl EntityMarker {
+    fn entity(&self) -> Entity {
+        match self {
+            EntityMarker::E(e) => *e,
+            EntityMarker::None => {
+                error!("using raw marker");
+                Entity::from_raw(0)
+            }
+        }
+    }
+
+    pub fn matches(&self, ent: &Entity) -> bool {
+        match self {
+            EntityMarker::E(e) => e == ent,
+            EntityMarker::None => false,
+        }
+    }
+}
+
+impl From<Entity> for EntityMarker {
+    fn from(e: Entity) -> Self {
+        EntityMarker::E(e)
+    }
+}
+
+impl From<Option<Entity>> for EntityMarker {
+    fn from(maybe_ent: Option<Entity>) -> Self {
+        match maybe_ent {
+            Some(e) => EntityMarker::E(e),
+            None => EntityMarker::None,
+        }
+    }
+}
+
+pub fn spawn_controls(
+    mut commands: Commands,
+    mut sender: Local<EntityMarker>,
+    mut modal_sender: Local<EntityMarker>,
+    mut evs: ResMut<Events<ActionEvent>>,
+    mut reader: Local<ManualEventReader<ActionEvent>>,
+    mut spawn: EventWriter<PopupMenuEvent>,
+    mut actions: ResMut<ActionInputs>,
+    mut settings: ResMut<PkvStore>,
+    mut current_page: Local<usize>,
+    mut selection: Local<Option<ActionType>>,
+    mut selected_index: Local<usize>,
+    mut new_inputs: EventReader<NewInputEvent>,
+) {
+    if matches!(*sender, EntityMarker::None) {
+        *sender = commands.spawn().id().into();
+    }
+    
+    let mut to_send;
+    let mut modal_entity = None;
+    let mut keep_position = true;
+
+    while !reader.is_empty(&evs) {
+        to_send = None;
+        let mut reset_position = false;
+        for ev in reader.iter(&evs) {
+            // process regardless of sender
+            match ev.label.0 {
+                "controls" => {
+                    reset_position = true;
+                    *selected_index = 0;
+                    *selection = None;
+                    *current_page = 1;
+                    to_send = Some("controls");
+                }
+                _ => ()
+            }
+
+            // only for my events
+            if sender.matches(&ev.sender) {
+                match ev.label.0 {
+                    "controls 1" | "controls 2" => {
+                        let mut items = Vec::new();
+
+                        let mut inputs = actions.items.iter().collect::<Vec<_>>();
+                        inputs.sort_by_key(|(ty, _)| *ty);
+
+                        for (ty, inputs) in inputs.into_iter().skip(if ev.label.0 == "controls 1" {0} else {9}).take(9) {
+                            items.push((ty.as_str().into(), ActionLabel(""), false));
+                            if Some(*ty) == *selection {
+                                items.push((MenuItem::InputList{items: inputs.clone(), focus: Some(*selected_index)}, ActionLabel(ty.as_str()), true));
+                            } else {
+                                items.push((MenuItem::InputList{items: inputs.clone(), focus: None}, ActionLabel(ty.as_str()), true));
+                            }
+                        }
+
+                        items.push(("".into(), ActionLabel(""), false));
+                        items.push(("".into(), ActionLabel(""), false));
+
+                        items.push(("".into(), ActionLabel(""), false));
+                        if ev.label.0 == "controls 1" {
+                            items.push(("Next".into(), ActionLabel("controls 2"), true));
+                            *current_page = 1;
+                        } else {
+                            items.push(("Prev".into(), ActionLabel("controls 1"), true));
+                            *current_page = 2;
+                        }
+
+                        items.push(("Restore Defaults".into(), ActionLabel("defaults"), true));
+                        items.push(("Cancel".into(), ActionLabel("cancel"), true));
+                        items.push(("".into(), ActionLabel(""), false));
+                        items.push(("Done".into(), ActionLabel("done"), true));
+
+                        spawn.send(PopupMenuEvent{ 
+                            sender: sender.entity(), 
+                            menu: PopupMenu { 
+                                heading: "Controls".into(), 
+                                items, 
+                                cancel_action: Some(ActionLabel("cancel")), 
+                                width: 2,
+                                initial_position: if keep_position { -1 } else { 0 },
+                                inactive_color: egui::Color32::from_rgb(255, 255, 255),
+                                text_size: 30.0,
+                                header_size: 0.25,
+                                modal_controller: modal_entity,
+                                ..Default::default()
+                            }, 
+                            sound: false,
+                        });
+                    },
+                    "defaults" => {
+                        *actions = ActionInputs::default();
+                        to_send = Some("controls");
+                    }
+                    "cancel" => {
+                        *actions = settings.get::<ActionInputs>("inputs").unwrap();
+                        to_send = Some("options");
+                    }
+                    "done" => {
+                        settings.set("inputs", &*actions).unwrap();
+                        to_send = Some("options");
+                    }
+                    _ => ()
+                }
+
+                for (ty, _) in actions.items.iter() {
+                    if ev.label.0 == ty.as_str() {
+                        let modal = commands.spawn().insert(Controller{
+                            display_order: 5,
+                            actions: vec![
+                                (ActionType::MoveLeft, Action{ label: ActionLabel("control_left"), sticky: true, display: DisplayMode::Off, display_text: None }),
+                                (ActionType::PanLeft, Action{ label: ActionLabel("control_left"), sticky: true, display: DisplayMode::Off, display_text: None }),
+                                (ActionType::MoveRight, Action{ label: ActionLabel("control_right"), sticky: true, display: DisplayMode::Off, display_text: None }),
+                                (ActionType::PanRight, Action{ label: ActionLabel("control_right"), sticky: true, display: DisplayMode::Off, display_text: None }),
+                                (ActionType::MainAction, Action{ label: ActionLabel("control_pick"), sticky: true, display: DisplayMode::Active, display_text: Some("pick") }),
+                                (ActionType::SecondAction, Action{ label: ActionLabel("control_cancel"), sticky: true, display: DisplayMode::Active, display_text: Some("cancel") }),
+                            ],
+                            enabled: true,
+                            ..Default::default()
+                        }).id();
+                        *modal_sender = modal.into();
+                        modal_entity = Some(modal);
+                        *selection = Some(*ty);
+                        *selected_index = actions.items.iter().find(|(typ, _)| ty == *typ).unwrap().1.len();
+                        to_send = Some("controls");
+                    }
+                }
+            }
+
+            // for my modal controller
+            if modal_sender.matches(&ev.sender) {
+                match ev.label.0 {
+                    "control_left" => {
+                        *selected_index = selected_index.saturating_sub(1);
+                        to_send = Some("controls");
+                        modal_entity = Some(ev.sender);
+                    }
+                    "control_right" => {
+                        *selected_index = usize::min(*selected_index+1, actions.items.iter().find(|(typ, _)| *selection == Some(**typ)).unwrap().1.len());
+                        to_send = Some("controls");
+                        modal_entity = Some(ev.sender);
+                    }
+                    "control_pick" => {
+                        let items = actions.items.iter_mut().find(|(typ, _)| *selection == Some(**typ)).unwrap().1;
+                        if *selected_index == items.len() {
+                            // add new
+                            let new_input = commands.spawn().insert(NewInputController::default()).id();
+                            modal_entity = Some(new_input);
+                            commands.entity(ev.sender).despawn_recursive();
+                        } else {
+                            items.remove(*selected_index);
+                            modal_entity = Some(ev.sender);
+                        }
+                        to_send = Some("controls");
+                    }
+                    "control_cancel" => {
+                        commands.entity(ev.sender).despawn_recursive();
+                        to_send = Some("controls");
+                        *selection = None; 
+                        modal_entity = None;
+                    }
+                    _ => ()
+                }
+            }
+        }
+
+        if let Some(to_send) = to_send {
+            let mut action = to_send;
+
+            if to_send == "controls" {
+                action = match *current_page {
+                    1 => "controls 1",
+                    2 => "controls 2",
+                    _ => unreachable!(),
+                };
+            }
+            evs.send(ActionEvent{sender: sender.entity(), label: ActionLabel(action), target: None});
+            keep_position = !reset_position;
+        } 
+    }
+
+    for ev in new_inputs.iter() {
+        if let Some((_, items)) = actions.items.iter_mut().find(|(typ, _)| *selection == Some(**typ)) {
+            if !items.contains(&ev.1) {
+                items.push(ev.1.clone());
+            }
+            commands.entity(ev.0).despawn_recursive();
+            *selection = None;
+
+            let action = match *current_page {
+                1 => "controls 1",
+                2 => "controls 2",
+                _ => unreachable!(),
+            };
+            evs.send(ActionEvent{sender: sender.entity(), label: ActionLabel(action), target: None});
+        }
     }
 }
