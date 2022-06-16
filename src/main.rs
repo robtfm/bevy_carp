@@ -432,8 +432,9 @@ fn spawn_random(
 fn setup_level(
     mut spawn_evs: EventReader<SpawnLevelEvent>,
     mut base: ResMut<LevelBase>,
+    mut level: ResMut<Level>,
     mut def: ResMut<LevelDef>,
-    mut action_evs: EventWriter<ActionEvent>,
+    mut reset: EventWriter<ResetEvent>,
     mut commands: Commands,
     mut bg: EventWriter<ChangeBackground>,
 ) {
@@ -491,16 +492,13 @@ fn setup_level(
             planks: vec![(plank, Position(pos))],
             setup: true,
         });
+        *level = base.0.clone();
         *def = ev.def.clone();
-        action_evs.send(ActionEvent {
-            sender: Entity::from_raw(0),
-            label: ActionLabel("restart"),
-            target: None,
-        });
         commands.insert_resource(UndoBuffer::new(base.0.clone()));
         commands.insert_resource(DonePlanks::default());
 
         bg.send_default();
+        reset.send_default();
     }
 }
 
@@ -2387,12 +2385,9 @@ fn hammer_home(
 
 fn system_events(
     mut spawn_event: EventWriter<SpawnLevelEvent>,
-    base: Res<LevelBase>,
-    mut level: ResMut<Level>,
     mut ev: EventReader<ActionEvent>,
     mut quit: EventWriter<AppExit>,
     mut levelset: ResMut<LevelSet>,
-    mut reset_events: EventWriter<ResetEvent>,
 ) {
     for ev in ev.iter() {
         match ev.label.0 {
@@ -2403,10 +2398,9 @@ fn system_events(
                 });
             }
             "restart" => {
-                *level = base.0.clone();
-                level.setup = true;
-
-                reset_events.send_default();
+                spawn_event.send(SpawnLevelEvent {
+                    def: levelset.levels[levelset.current_level].clone(),
+                });
             }
             "quit" => {
                 quit.send_default();
